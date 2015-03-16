@@ -1,0 +1,6 @@
+{application, rabbitmq_delayed_message_exchange,
+ [{description, "RabbitMQ Delayed Message Exchange"},
+  {vsn, "0.0.1"},
+  {modules, []},
+  {registered, []},
+  {applications, [kernel, stdlib, rabbit]}]}.
