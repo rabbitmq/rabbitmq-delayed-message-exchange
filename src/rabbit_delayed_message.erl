@@ -21,8 +21,8 @@
 -module(rabbit_delayed_message).
 
 -rabbit_boot_step({?MODULE,
-                   [{description, "exchange delayed message dets setup"},
-                    {mfa, {?MODULE, setup_dets, []}},
+                   [{description, "exchange delayed message mnesia setup"},
+                    {mfa, {?MODULE, setup_mnesia, []}},
                     {cleanup, {?MODULE, disable_plugin, []}},
                     {requires, external_infrastructure},
                     {enables, rabbit_registry}]}).
@@ -32,7 +32,7 @@
 
 -behaviour(gen_server).
 
--export([start_link/0, delay_message/3, setup_dets/0, disable_plugin/0]).
+-export([start_link/0, delay_message/3, setup_mnesia/0, disable_plugin/0]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
          code_change/3]).
 
@@ -62,13 +62,29 @@
 -endif.
 
 -define(SERVER, ?MODULE).
--define(TABLE_NAME, ?MODULE).
+-define(TABLE_NAME, append_to_atom(?MODULE, node())).
+-define(INDEX_TABLE_NAME, append_to_atom(?TABLE_NAME, "_index")).
 -define(INTEGER_ARG_TYPES, [byte, short, signedint, long]).
 -define(ERL_MAX_T, 4294967295). %% Max timer delay, per Erlang docs.
 
 -record(state, {timer}).
--record(delay_key, {timestamp, exchange, type}).
--record(delay_entry, {key, delivery}).
+
+-record(delay_key,
+        { timestamp, %% timestamp delay
+          exchange,  %% rabbit_types:exchange()
+          type       %% proxied exchange type
+        }).
+
+-record(delay_entry,
+        { delay_key, %% delay_key record
+          delivery,  %% the message delivery
+          ref        %% ref to make records distinct for 'bag' semantics.
+        }).
+
+-record(delay_index,
+        { delay_key, %% delay_key record
+          const      %% record must have two fields
+        }).
 
 %%--------------------------------------------------------------------
 
@@ -76,17 +92,26 @@ start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
 delay_message(Exchange, Type, Delivery) ->
-    gen_server:call(?MODULE, {delay_message, Exchange, Type, Delivery}, infinity).
+    gen_server:call(?MODULE, {delay_message, Exchange, Type, Delivery},
+                    infinity).
 
-setup_dets() ->
-    File = filename:join(rabbit_mnesia:dir(), "delayed_message.dets"),
-    {ok, _} = dets:open_file(?TABLE_NAME, [{file, File},
-                                           {keypos, #delay_entry.key},
-                                           {ramfile, true},
-                                           {type, duplicate_bag}]).
+setup_mnesia() ->
+    mnesia:create_table(?TABLE_NAME, [{record_name, delay_entry},
+                                      {attributes,
+                                       record_info(fields, delay_entry)},
+                                      {type, bag},
+                                      {disc_copies, [node()]}]),
+    mnesia:create_table(?INDEX_TABLE_NAME, [{record_name, delay_index},
+                                            {attributes,
+                                             record_info(fields, delay_index)},
+                                            {type, ordered_set},
+                                            {disc_copies, [node()]}]),
+    mnesia:wait_for_tables([?TABLE_NAME, ?INDEX_TABLE_NAME], 30000).
 
 disable_plugin() ->
-    dets:close(?TABLE_NAME).
+    mnesia:delete_table(?INDEX_TABLE_NAME),
+    mnesia:delete_table(?TABLE_NAME),
+    ok.
 
 %%--------------------------------------------------------------------
 
@@ -111,16 +136,17 @@ handle_cast(_C, State) ->
     {noreply, State}.
 
 handle_info({deliver, Key}, State) ->
-    case dets:lookup(?TABLE_NAME, Key) of
+    case mnesia:dirty_read(?TABLE_NAME, Key) of
         [] ->
             ok;
         Deliveries ->
             route(Key, Deliveries),
-            dets:delete(?TABLE_NAME, Key)
+            mnesia:dirty_delete(?TABLE_NAME, Key),
+            mnesia:dirty_delete(?INDEX_TABLE_NAME, Key)
     end,
 
     _Ret =
-        case dets:first(?TABLE_NAME) of
+        case mnesia:dirty_first(?INDEX_TABLE_NAME) of
             %% destructuring to prevent matching '$end_of_table'
             #delay_key{timestamp = FirstTS} = Key2 ->
                 %% there are messages that expired and need to be delivered
@@ -135,8 +161,6 @@ handle_info(_I, State) ->
     {noreply, State}.
 
 terminate(_, _) ->
-    dets:sync(?TABLE_NAME),
-    dets:close(?TABLE_NAME),
     ok.
 
 code_change(_, State, _) -> {ok, State}.
@@ -172,12 +196,15 @@ internal_delay_message(CurrTimer, Exchange, Type, Delivery, Delay) ->
     Now = rabbit_misc:now_to_ms(now()),
     %% keys are timestamps in milliseconds,in the future
     DelayTS = Now + Delay,
-    dets:insert(?TABLE_NAME, make_delay(DelayTS, Exchange, Type, Delivery)),
+    mnesia:dirty_write(?INDEX_TABLE_NAME,
+                       make_index(DelayTS, Exchange, Type)),
+    mnesia:dirty_write(?TABLE_NAME,
+                       make_delay(DelayTS, Exchange, Type, Delivery)),
     case erlang:read_timer(CurrTimer) of
         false ->
             %% last timer expired, we set a new timer for
             %% the next message to be delivered
-            case dets:first(?TABLE_NAME) of
+            case mnesia:dirty_first(?INDEX_TABLE_NAME) of
                 %% destructuring to prevent matching '$end_of_table'
                 #delay_key{timestamp = FirstTS} = Key
                   when FirstTS < DelayTS ->
@@ -226,10 +253,20 @@ start_timer(Delay, Key) ->
     erlang:start_timer(max(0, Delay), self(), {deliver, Key}).
 
 make_delay(DelayTS, Exchange, Type, Delivery) ->
-    #delay_entry{key = make_key(DelayTS, Exchange, Type),
-                 delivery = Delivery}.
+    #delay_entry{delay_key = make_key(DelayTS, Exchange, Type),
+                 delivery  = Delivery,
+                 ref       = make_ref()}.
+
+make_index(DelayTS, Exchange, Type) ->
+    #delay_index{delay_key = make_key(DelayTS, Exchange, Type),
+                 const = true}.
 
 make_key(DelayTS, Exchange, Type) ->
     #delay_key{timestamp = DelayTS,
                exchange  = Exchange,
                type      = Type}.
+
+append_to_atom(Atom, Append) when is_atom(Append) ->
+    append_to_atom(Atom, atom_to_list(Append));
+append_to_atom(Atom, Append) when is_list(Append) ->
+    list_to_atom(atom_to_list(Atom) ++ Append).
