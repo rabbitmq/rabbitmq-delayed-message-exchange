@@ -116,7 +116,7 @@ disable_plugin() ->
 %%--------------------------------------------------------------------
 
 init([]) ->
-    {ok, #state{timer = make_ref()}}.
+    {ok, #state{timer = maybe_delay_first(make_ref())}}.
 
 handle_call({delay_message, Exchange, Type, Delivery},
             _From, State = #state{timer = CurrTimer}) ->
@@ -135,7 +135,7 @@ handle_call(_Req, _From, State) ->
 handle_cast(_C, State) ->
     {noreply, State}.
 
-handle_info({deliver, Key}, State) ->
+handle_info({deliver, Key}, State = #state{timer = CurrTimer}) ->
     case mnesia:dirty_read(?TABLE_NAME, Key) of
         [] ->
             ok;
@@ -145,18 +145,7 @@ handle_info({deliver, Key}, State) ->
             mnesia:dirty_delete(?INDEX_TABLE_NAME, Key)
     end,
 
-    _Ret =
-        case mnesia:dirty_first(?INDEX_TABLE_NAME) of
-            %% destructuring to prevent matching '$end_of_table'
-            #delay_key{timestamp = FirstTS} = Key2 ->
-                %% there are messages that expired and need to be delivered
-                Now = rabbit_misc:now_to_ms(now()),
-                {ok, start_timer(FirstTS - Now, Key2)};
-            _ ->
-                %% nothing to do
-                ok
-        end,
-    {noreply, State};
+    {noreply, State#state{timer = maybe_delay_first(CurrTimer)}};
 handle_info(_I, State) ->
     {noreply, State}.
 
@@ -166,6 +155,18 @@ terminate(_, _) ->
 code_change(_, State, _) -> {ok, State}.
 
 %%--------------------------------------------------------------------
+
+maybe_delay_first(CurrTimer) ->
+    case mnesia:dirty_first(?INDEX_TABLE_NAME) of
+        %% destructuring to prevent matching '$end_of_table'
+        #delay_key{timestamp = FirstTS} = Key2 ->
+            %% there are messages that expired and need to be delivered
+            Now = rabbit_misc:now_to_ms(now()),
+            start_timer(FirstTS - Now, Key2);
+        _ ->
+            %% nothing to do
+            CurrTimer
+    end.
 
 route(#delay_key{exchange = Ex, type = Type}, Deliveries) ->
     lists:map(fun (#delay_entry{delivery = D}) ->
