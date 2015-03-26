@@ -14,9 +14,12 @@
 %%  Copyright (c) 2007-2014 GoPivotal, Inc.  All rights reserved.
 %%
 
-%% NOTE that this module uses erlang:now/0 instead of os:timestamp/0
-%% See the relation of now/0 and timers here:
-%% http://erlang.org/pipermail/erlang-questions/2015-March/083794.html
+%% NOTE that this module uses os:timestamp/0 but in the future Erlang
+%% will have a new time API.
+%% See:
+%% http://www.erlang.org/documentation/doc-7.0-rc1/erts-7.0/doc/html/erlang.html#now-0
+%% and
+%% http://www.erlang.org/documentation/doc-7.0-rc1/erts-7.0/doc/html/time_correction.html
 
 -module(rabbit_delayed_message).
 
@@ -161,7 +164,7 @@ maybe_delay_first(CurrTimer) ->
         %% destructuring to prevent matching '$end_of_table'
         #delay_key{timestamp = FirstTS} = Key2 ->
             %% there are messages that expired and need to be delivered
-            Now = rabbit_misc:now_to_ms(now()),
+            Now = rabbit_misc:now_to_ms(os:timestamp()),
             start_timer(FirstTS - Now, Key2);
         _ ->
             %% nothing to do
@@ -194,7 +197,7 @@ process_delivery(CurrTimer, Exchange, Type, Delivery) ->
     end.
 
 internal_delay_message(CurrTimer, Exchange, Type, Delivery, Delay) ->
-    Now = rabbit_misc:now_to_ms(now()),
+    Now = rabbit_misc:now_to_ms(os:timestamp()),
     %% keys are timestamps in milliseconds,in the future
     DelayTS = Now + Delay,
     mnesia:dirty_write(?INDEX_TABLE_NAME,
