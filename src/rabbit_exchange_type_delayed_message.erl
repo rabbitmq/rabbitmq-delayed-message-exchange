@@ -38,7 +38,7 @@
          create/2, delete/3, policy_changed/2,
          add_binding/3, remove_bindings/3, assert_args_equivalence/2]).
 
--define(EXCHANGE(Ex), (rabbit_exchange:type_to_module(exchange_type(Ex)))).
+-define(EXCHANGE(Ex), (exchange_module(Ex))).
 
 %%----------------------------------------------------------------------------
 
@@ -93,6 +93,11 @@ delay_message(Exchange, Type, Delivery) ->
     rabbit_delayed_message:delay_message(Exchange, Type, Delivery).
 
 %% assumes the type is set in the args and that validate/1 did its job
+exchange_module(Ex) ->
+    T = rabbit_registry:binary_to_type(exchange_type(Ex)),
+    {ok, M} = rabbit_registry:lookup_module(exchange, T),
+    M.
+
 exchange_type(#exchange{arguments = Args}) ->
     case table_lookup(Args, <<"x-delayed-type">>) of
         {_ArgType, Type} -> Type;
