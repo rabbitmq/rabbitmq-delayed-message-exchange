@@ -185,14 +185,14 @@ make_queue(Q) ->
       }.
 
 make_durable_queue(Q) ->
-    #'queue.declare' {
-       queue       = Q,
-       durable     = true,
-       auto_delete = false
-      }.
+    QR = make_queue(Q),
+    QR#'queue.declare'{
+      durable     = true,
+      auto_delete = false
+     }.
 
 make_exchange(Ex, Type) ->
-    #'exchange.declare' {
+    #'exchange.declare'{
        exchange    = Ex,
        type        = <<"x-delayed-message">>,
        arguments   = [{<<"x-delayed-type">>,
@@ -200,14 +200,11 @@ make_exchange(Ex, Type) ->
       }.
 
 make_durable_exchange(Ex, Type) ->
-    #'exchange.declare' {
-       exchange    = Ex,
-       type        = <<"x-delayed-message">>,
-       durable     = true,
-       auto_delete = false,
-       arguments   = [{<<"x-delayed-type">>,
-                       longstr, Type}]
-      }.
+    ER = make_exchange(Ex, Type),
+    ER#'exchange.declare'{
+      durable     = true,
+      auto_delete = false
+     }.
 
 make_msg(V) ->
     #amqp_msg{props = #'P_basic'{
