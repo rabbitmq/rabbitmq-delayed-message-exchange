@@ -185,15 +185,17 @@ process_delivery(CurrTimer, Exchange, Type, Delivery) ->
             nodelay;
         H ->
             case table_lookup(H, <<"x-delay">>) of
-                {Type, Delay} ->
-                    case check_int_arg(Type) of
+                {DType, Delay} ->
+                    case check_int_arg(DType) of
                         ok when Delay > 0, Delay =< ?ERL_MAX_T ->
                             internal_delay_message(CurrTimer,
                                                    Exchange, Type,
                                                    Delivery, Delay);
                         _  ->
                             nodelay
-                    end
+                    end;
+                _ ->
+                    nodelay
             end
     end.
 
