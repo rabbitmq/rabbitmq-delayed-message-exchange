@@ -28,7 +28,7 @@ Declare = #'exchange.declare' {
               arguments   = [{<<"x-delayed-type">>,
                               longstr, <<"direct">>}]
       },
-amqp_channel:call(Chan, Ex),
+amqp_channel:call(Chan, Declare),
 
 ... more code ...
 ```
