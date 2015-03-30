@@ -10,7 +10,6 @@ BASEDIR=${TMPDIR}/rabbitmq-rh-tests/$(OTHER_NODE)
 PID_FILE=$(BASEDIR)/$(OTHER_NODE).pid
 
 start-other-node:
-	rm -rf $(BASEDIR)
 	RABBITMQ_MNESIA_BASE=$(BASEDIR)/rabbitmq-$(OTHER_NODE)-mnesia \
 	RABBITMQ_LOG_BASE=$(BASEDIR) \
 	RABBITMQ_NODENAME=$(OTHER_NODE) \
