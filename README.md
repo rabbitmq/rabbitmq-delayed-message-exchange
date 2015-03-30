@@ -20,16 +20,15 @@ type `x-delayed-message`:
 ```erlang
 ... elided code ...
 
-Ex = #'exchange.declare' {
-       exchange    = <<"my-exchange">>",
-       type        = <<"x-delayed-message">>,
-       durable     = true,
-       auto_delete = false,
-       arguments   = [{<<"x-delayed-type">>,
-                       longstr, <<"direct">>}]
+Declare = #'exchange.declare' {
+              exchange    = <<"my-exchange">>",
+              type        = <<"x-delayed-message">>,
+              durable     = true,
+              auto_delete = false,
+              arguments   = [{<<"x-delayed-type">>,
+                              longstr, <<"direct">>}]
       },
 amqp_channel:call(Chan, Ex),
-
 
 ... more code ...
 ```
@@ -79,7 +78,7 @@ specify exchange types provided by plugins. Note that this argument is
 
 You can disable this plugin by calling `rabbitmq-plugins disable
 rabbitmq_delayed_messaging` but note that **ALL DELAYED MESSAGES THAT
-HAVEN'T BEEN DELIVERED WILL BE LOST`.
+HAVEN'T BEEN DELIVERED WILL BE LOST**.
 
 ## Plugin Status ##
 
