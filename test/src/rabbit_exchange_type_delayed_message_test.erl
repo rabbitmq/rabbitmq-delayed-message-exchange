@@ -35,6 +35,45 @@ delay_order_test() ->
 
     ok.
 
+
+node_restart_test() ->
+    start_other_node(?HARE),
+
+    {ok, Conn} = amqp_connection:start(#amqp_params_network{port=5673}),
+    {ok, Chan} = amqp_connection:open_channel(Conn),
+
+    Ex = <<"e1">>,
+    Q = <<"q">>,
+
+    setup_fabric(Chan, make_durable_exchange(Ex, <<"direct">>),
+                 make_durable_queue(Q)),
+
+    Msgs = [5000, 1000, 3000, 2000, 1000, 4000],
+
+    publish_messages(Chan, Ex, Msgs),
+
+    amqp_channel:close(Chan),
+    amqp_connection:close(Conn),
+
+    stop_other_node(?HARE),
+    start_other_node(?HARE),
+
+    {ok, Conn2} = amqp_connection:start(#amqp_params_network{port=5673}),
+    {ok, Chan2} = amqp_connection:open_channel(Conn2),
+
+    Result = consume(Chan2, Q, Msgs),
+
+    Sorted = lists:sort(Msgs),
+    {ok, Sorted} = Result,
+
+    amqp_channel:call(Chan2, #'exchange.delete' { exchange = Ex }),
+    amqp_channel:call(Chan2, #'queue.delete' { queue = Q }),
+
+    reset_other_node(?HARE),
+    stop_other_node(?HARE),
+
+    ok.
+
 make_queue(Q) ->
     #'queue.declare' {
        queue       = Q
