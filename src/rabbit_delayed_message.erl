@@ -138,7 +138,8 @@ handle_call(_Req, _From, State) ->
 handle_cast(_C, State) ->
     {noreply, State}.
 
-handle_info({deliver, Key}, State = #state{timer = CurrTimer}) ->
+handle_info({timeout, _TimerRef, {deliver, Key}},
+            State = #state{timer = CurrTimer}) ->
     case mnesia:dirty_read(?TABLE_NAME, Key) of
         [] ->
             ok;
