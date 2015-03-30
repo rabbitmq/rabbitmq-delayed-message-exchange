@@ -14,6 +14,64 @@
 test() ->
     ok = eunit:test(tests(?MODULE, 60), [verbose]).
 
+wrong_exchange_argument_type_test() ->
+    {ok, Conn} = amqp_connection:start(#amqp_params_network{}),
+    {ok, Chan} = amqp_connection:open_channel(Conn),
+    Ex = <<"fail">>,
+    Type = <<"x-not-valid-type">>,
+    process_flag(trap_exit, true),
+    ?assertExit(_, amqp_channel:call(Chan, make_exchange(Ex, Type))),
+    ok.
+
+routing_topic_test() ->
+    BKs = [<<"a.b.c">>, <<"a.*.c">>, <<"a.#">>],
+    RKs = [<<"a.b.c">>, <<"a.z.c">>, <<"a.j.k">>, <<"b.b.c">>],
+    %% all except <<"b.b.c">> should be routed.
+    Count = 3,
+    routing_test0(BKs, RKs, <<"topic">>, Count).
+
+routing_direct_test() ->
+    BKs = [<<"mykey">>],
+    RKs = [<<"mykey">>, <<"noroute">>, <<"mykey">>],
+    %% all except <<"noroute">> should be routed.
+    Count = 2,
+    routing_test0(BKs, RKs, <<"direct">>, Count).
+
+routing_fanout_test() ->
+    BKs = [<<"mykey">>, <<>>, <<"otherkey">>],
+    RKs = [<<"mykey">>, <<"noroute">>, <<"mykey">>],
+    %% all except <<"noroute">> should be routed.
+    Count = 3,
+    routing_test0(BKs, RKs, <<"fanout">>, Count).
+
+routing_test0(BKs, RKs, ExType, Count) ->
+    {ok, Conn} = amqp_connection:start(#amqp_params_network{}),
+    {ok, Chan} = amqp_connection:open_channel(Conn),
+
+    Ex = <<"e1">>,
+    Q = <<"q">>,
+
+    [setup_fabric(Chan, make_exchange(Ex, ExType), make_queue(Q), BRK) ||
+        BRK <- BKs],
+
+    %% message delay will be 0, we are testing routing here
+    Msgs = [0],
+
+    [publish_messages(Chan, Ex, K, Msgs) ||
+        K <- RKs],
+
+    #'queue.declare_ok'{message_count = MCount} =
+        amqp_channel:call(Chan, make_queue(Q)),
+
+    %% all except <<"b.b.c">> should be routed.
+    ?assertEqual(Count, MCount),
+
+    amqp_channel:call(Chan, #'exchange.delete' { exchange = Ex }),
+    amqp_channel:call(Chan, #'queue.delete' { queue = Q }),
+    amqp_channel:close(Chan),
+    amqp_connection:close(Conn),
+    ok.
+
 delay_order_test() ->
     {ok, Conn} = amqp_connection:start(#amqp_params_network{}),
     {ok, Chan} = amqp_connection:open_channel(Conn),
@@ -33,7 +91,6 @@ delay_order_test() ->
     {ok, Sorted} = Result,
 
     ok.
-
 
 node_restart_test() ->
     start_other_node(?HARE),
@@ -73,9 +130,13 @@ node_restart_test() ->
 
     ok.
 
+setup_fabric(Chan, ExDeclare, QueueDeclare) ->
+    setup_fabric(Chan, ExDeclare, QueueDeclare, <<>>).
+
 setup_fabric(Chan,
              ExDeclare = #'exchange.declare'{exchange = Ex},
-             QueueDeclare) ->
+             QueueDeclare,
+             RK) ->
     #'exchange.declare_ok'{} =
         amqp_channel:call(Chan, ExDeclare),
 
@@ -84,13 +145,18 @@ setup_fabric(Chan,
 
     #'queue.bind_ok'{} =
         amqp_channel:call(Chan, #'queue.bind' {
-                                   queue = Q,
-                                   exchange = Ex
+                                   queue       = Q,
+                                   exchange    = Ex,
+                                   routing_key = RK
                                   }).
 
 publish_messages(Chan, Ex, Msgs) ->
+    publish_messages(Chan, Ex, <<>>, Msgs).
+
+publish_messages(Chan, Ex, RK, Msgs) ->
         [amqp_channel:call(Chan,
-                           #'basic.publish'{exchange = Ex},
+                           #'basic.publish'{exchange = Ex,
+                                            routing_key = RK},
                            make_msg(V)) || V <- Msgs].
 
 consume(Chan, Q, Msgs) ->
