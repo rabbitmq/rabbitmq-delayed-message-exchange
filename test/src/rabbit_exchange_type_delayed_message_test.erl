@@ -9,8 +9,7 @@
 -define(HARE,   {"rabbit-hare", 5673}).
 
 -import(rabbit_exchange_type_delayed_message_test_util,
-        [start_other_node/1, cluster_other_node/2,
-         reset_other_node/1, stop_other_node/1]).
+        [start_other_node/1, reset_other_node/1, stop_other_node/1]).
 
 test() ->
     ok = eunit:test(tests(?MODULE, 60), [verbose]).
