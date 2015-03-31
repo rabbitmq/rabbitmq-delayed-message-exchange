@@ -63,7 +63,6 @@ routing_test0(BKs, RKs, ExType, Count) ->
     #'queue.declare_ok'{message_count = MCount} =
         amqp_channel:call(Chan, make_queue(Q)),
 
-    %% all except <<"b.b.c">> should be routed.
     ?assertEqual(Count, MCount),
 
     amqp_channel:call(Chan, #'exchange.delete' { exchange = Ex }),
