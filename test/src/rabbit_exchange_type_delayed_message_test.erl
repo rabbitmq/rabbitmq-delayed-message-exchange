@@ -125,7 +125,7 @@ delay_order_test() ->
 
     setup_fabric(Chan, make_exchange(Ex, <<"direct">>), make_queue(Q)),
 
-    Msgs = [5000, 1000, 3000, 2000, 1000, 4000],
+    Msgs = [500, 100, 300, 200, 100, 400],
 
     publish_messages(Chan, Ex, Msgs),
 
