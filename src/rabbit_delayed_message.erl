@@ -186,22 +186,30 @@ route(#delay_key{exchange = Ex, type = Type}, Deliveries) ->
               end, Deliveries).
 
 process_delivery(CurrTimer, Exchange, Type, Delivery) ->
+    case get_delay(Delivery) of
+        {ok, Delay} when Delay > 0, Delay =< ?ERL_MAX_T ->
+            internal_delay_message(CurrTimer,
+                                   Exchange, Type,
+                                   Delivery, Delay);
+        {ok, _} ->
+            nodelay;
+        {error, nodelay} ->
+            nodelay
+    end.
+
+get_delay(Delivery) ->
     case msg_headers(Delivery) of
         undefined ->
-            nodelay;
+            {error, nodelay};
         H ->
             case table_lookup(H, <<"x-delay">>) of
-                {DType, Delay} ->
-                    case check_int_arg(DType) of
-                        ok when Delay > 0, Delay =< ?ERL_MAX_T ->
-                            internal_delay_message(CurrTimer,
-                                                   Exchange, Type,
-                                                   Delivery, Delay);
-                        _  ->
-                            nodelay
+                {Type, Delay} ->
+                    case check_int_arg(Type) of
+                        ok -> {ok, Delay};
+                        _  -> {error, nodelay}
                     end;
                 _ ->
-                    nodelay
+                    {error, nodelay}
             end
     end.
 
