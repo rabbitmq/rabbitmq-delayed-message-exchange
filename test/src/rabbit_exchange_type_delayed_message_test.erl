@@ -100,12 +100,10 @@ e2e_test0(Msgs) ->
                                   }),
 
 
-    publish_messages(Chan, Ex, <<>>, Msgs),
+    publish_messages(Chan, Ex, Msgs),
 
     {ok, Result} = consume(Chan, Q, Msgs),
-
     Sorted = lists:sort(Msgs),
-
     ?assertEqual(Sorted, Result),
 
     amqp_channel:call(Chan, #'exchange.delete' { exchange = Ex }),
@@ -129,10 +127,9 @@ delay_order_test() ->
 
     publish_messages(Chan, Ex, Msgs),
 
-    Result = consume(Chan, Q, Msgs),
-
+    {ok, Result} = consume(Chan, Q, Msgs),
     Sorted = lists:sort(Msgs),
-    {ok, Sorted} = Result,
+    ?assertEqual(Sorted, Result),
 
     ok.
 
@@ -161,10 +158,9 @@ node_restart_test() ->
     {ok, Conn2} = amqp_connection:start(#amqp_params_network{port=5673}),
     {ok, Chan2} = amqp_connection:open_channel(Conn2),
 
-    Result = consume(Chan2, Q, Msgs),
-
+    {ok, Result} = consume(Chan2, Q, Msgs),
     Sorted = lists:sort(Msgs),
-    {ok, Sorted} = Result,
+    ?assertEqual(Sorted, Result),
 
     amqp_channel:call(Chan2, #'exchange.delete' { exchange = Ex }),
     amqp_channel:call(Chan2, #'queue.delete' { queue = Q }),
