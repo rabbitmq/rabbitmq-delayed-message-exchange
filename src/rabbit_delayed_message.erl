@@ -170,11 +170,12 @@ maybe_delay_first(CurrTimer) ->
             CurrTimer
     end.
 
-route(#delay_key{exchange = Ex, type = Type}, Deliveries) ->
+route(#delay_key{exchange = Ex, type = _Type}, Deliveries) ->
     lists:map(fun (#delay_entry{delivery = D}) ->
-                      Dests = Type:route(Ex, D),
+                      D2 = swap_delay_header(D),
+                      Dests = rabbit_exchange:route(Ex, D2),
                       Qs = rabbit_amqqueue:lookup(Dests),
-                      rabbit_amqqueue:deliver(Qs, D)
+                      rabbit_amqqueue:deliver(Qs, D2)
               end, Deliveries).
 
 internal_delay_message(CurrTimer, Exchange, Type, Delivery, Delay) ->

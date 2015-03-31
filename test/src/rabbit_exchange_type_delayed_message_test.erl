@@ -71,6 +71,51 @@ routing_test0(BKs, RKs, ExType, Count) ->
     amqp_connection:close(Conn),
     ok.
 
+e2e_nodelay_test() ->
+    %% message delay will be 0,
+    %% we are testing e2e without delays
+    e2e_test0([0]).
+
+e2e_delay_test() ->
+    %% message delay will be 0,
+    %% we are testing e2e without delays
+    e2e_test0([500, 100, 300, 200, 100, 400]).
+
+e2e_test0(Msgs) ->
+    {ok, Conn} = amqp_connection:start(#amqp_params_network{}),
+    {ok, Chan} = amqp_connection:open_channel(Conn),
+
+    Ex = <<"e1">>,
+    Ex2 = <<"e2">>,
+    Q = <<"q">>,
+
+    declare_exchange(Chan, make_exchange(Ex, <<"direct">>)),
+
+    setup_fabric(Chan, make_exchange(Ex2, <<"direct">>), make_queue(Q)),
+
+    #'exchange.bind_ok'{} =
+        amqp_channel:call(Chan, #'exchange.bind' {
+                                   source      = Ex,
+                                   destination = Ex2
+                                  }),
+
+
+    publish_messages(Chan, Ex, <<>>, Msgs),
+
+    {ok, Result} = consume(Chan, Q, Msgs),
+
+    Sorted = lists:sort(Msgs),
+
+    ?assertEqual(Sorted, Result),
+
+    amqp_channel:call(Chan, #'exchange.delete' { exchange = Ex }),
+    amqp_channel:call(Chan, #'exchange.delete' { exchange = Ex2 }),
+    amqp_channel:call(Chan, #'queue.delete' { queue = Q }),
+    amqp_channel:close(Chan),
+    amqp_connection:close(Conn),
+
+    ok.
+
 delay_order_test() ->
     {ok, Conn} = amqp_connection:start(#amqp_params_network{}),
     {ok, Chan} = amqp_connection:open_channel(Conn),
@@ -136,8 +181,7 @@ setup_fabric(Chan,
              ExDeclare = #'exchange.declare'{exchange = Ex},
              QueueDeclare,
              RK) ->
-    #'exchange.declare_ok'{} =
-        amqp_channel:call(Chan, ExDeclare),
+    declare_exchange(Chan, ExDeclare),
 
     #'queue.declare_ok'{queue = Q} =
         amqp_channel:call(Chan, QueueDeclare),
@@ -148,6 +192,10 @@ setup_fabric(Chan,
                                    exchange    = Ex,
                                    routing_key = RK
                                   }).
+
+declare_exchange(Chan, ExDeclare) ->
+    #'exchange.declare_ok'{} =
+        amqp_channel:call(Chan, ExDeclare).
 
 publish_messages(Chan, Ex, Msgs) ->
     publish_messages(Chan, Ex, <<>>, Msgs).
