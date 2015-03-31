@@ -1,5 +1,5 @@
 %%  The contents of this file are subject to the Mozilla Public License
-%%  Version 1.1 (the "License"); you may not use this file except in
+%%  Version 2.0 (the "License"); you may not use this file except in
 %%  compliance with the License. You may obtain a copy of the License
 %%  at http://www.mozilla.org/MPL/
 %%
@@ -8,10 +8,10 @@
 %%  the License for the specific language governing rights and
 %%  limitations under the License.
 %%
-%%  The Original Code is RabbitMQ.
+%%  The Original Code is RabbitMQ Delayed Message
 %%
 %%  The Initial Developer of the Original Code is GoPivotal, Inc.
-%%  Copyright (c) 2007-2014 GoPivotal, Inc.  All rights reserved.
+%%  Copyright (c) 2007-2015 GoPivotal, Inc.  All rights reserved.
 %%
 
 %% NOTE that this module uses os:timestamp/0 but in the future Erlang
