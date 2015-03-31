@@ -24,7 +24,7 @@
      {cleanup, {rabbit_registry, unregister,
                 [exchange, <<"x-delayed-message">>]}},
      {requires,    rabbit_registry},
-     {enables,     kernel_ready}]}).
+     {enables,     recovery}]}).
 
 -include_lib("rabbit_common/include/rabbit.hrl").
 -include_lib("rabbit_common/include/rabbit_framing.hrl").

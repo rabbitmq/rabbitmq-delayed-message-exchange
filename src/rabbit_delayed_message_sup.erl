@@ -30,6 +30,7 @@
                    [{description, "delayed message sup"},
                     {mfa,         {rabbit_sup, start_child, [?MODULE]}},
                     {requires,    kernel_ready},
+                    {enables,     rabbit_exchange_type_delayed_message},
                     {cleanup,     {?MODULE, stop, []}}]}).
 
 start_link() ->

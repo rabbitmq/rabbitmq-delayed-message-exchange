@@ -35,7 +35,7 @@
 
 -behaviour(gen_server).
 
--export([start_link/0, delay_message/3, setup_mnesia/0, disable_plugin/0]).
+-export([start_link/0, delay_message/3, setup_mnesia/0, disable_plugin/0, go/0]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
          code_change/3]).
 
@@ -94,6 +94,9 @@
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
+go() ->
+    gen_server:cast(?MODULE, go).
+
 delay_message(Exchange, Type, Delivery) ->
     gen_server:call(?MODULE, {delay_message, Exchange, Type, Delivery},
                     infinity).
@@ -119,7 +122,7 @@ disable_plugin() ->
 %%--------------------------------------------------------------------
 
 init([]) ->
-    {ok, #state{timer = maybe_delay_first(make_ref())}}.
+    {ok, #state{timer = make_ref()}}.
 
 handle_call({delay_message, Exchange, Type, Delivery},
             _From, State = #state{timer = CurrTimer}) ->
@@ -135,6 +138,9 @@ handle_call({delay_message, Exchange, Type, Delivery},
 handle_call(_Req, _From, State) ->
     {reply, unknown_request, State}.
 
+handle_cast(go, State = #state{timer = CurrTimer}) ->
+    maybe_delay_first(CurrTimer),
+    {noreply, State};
 handle_cast(_C, State) ->
     {noreply, State}.
 
