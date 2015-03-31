@@ -30,16 +30,13 @@
                     {requires, external_infrastructure},
                     {enables, rabbit_registry}]}).
 
--include_lib("rabbit_common/include/rabbit.hrl").
--include_lib("rabbit_common/include/rabbit_framing.hrl").
-
 -behaviour(gen_server).
 
--export([start_link/0, delay_message/3, setup_mnesia/0, disable_plugin/0, go/0]).
+-export([start_link/0, delay_message/4, setup_mnesia/0, disable_plugin/0, go/0]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
          code_change/3]).
 
--import(rabbit_misc, [table_lookup/2]).
+-import(rabbit_delayed_message_utils, [swap_delay_header/1]).
 
 -ifdef(use_specs).
 
@@ -51,11 +48,6 @@
 -spec delay_message(rabbit_types:exchange(), exchange_module(),
                     rabbit_types:delivery()) ->
                            nodelay | {ok, t_reference().
-
--spec process_delivery(t_reference(),
-                       rabbit_types:exchange(), exchange_module(),
-                       rabbit_types:delivery()) ->
-                              nodelay | {ok, t_reference()}.
 
 -spec internal_delay_message(t_reference(),
                              rabbit_types:exchange(), exchange_module(),
@@ -97,8 +89,8 @@ start_link() ->
 go() ->
     gen_server:cast(?MODULE, go).
 
-delay_message(Exchange, Type, Delivery) ->
-    gen_server:call(?MODULE, {delay_message, Exchange, Type, Delivery},
+delay_message(Exchange, Type, Delivery, Delay) ->
+    gen_server:call(?MODULE, {delay_message, Exchange, Type, Delivery, Delay},
                     infinity).
 
 setup_mnesia() ->
@@ -124,9 +116,9 @@ disable_plugin() ->
 init([]) ->
     {ok, #state{timer = make_ref()}}.
 
-handle_call({delay_message, Exchange, Type, Delivery},
+handle_call({delay_message, Exchange, Type, Delivery, Delay},
             _From, State = #state{timer = CurrTimer}) ->
-    Reply = process_delivery(CurrTimer, Exchange, Type, Delivery),
+    Reply = internal_delay_message(CurrTimer, Exchange, Type, Delivery, Delay),
     State2 = case Reply of
                  {ok, NewTimer} ->
                      State#state{timer = NewTimer};
@@ -185,34 +177,6 @@ route(#delay_key{exchange = Ex, type = Type}, Deliveries) ->
                       rabbit_amqqueue:deliver(Qs, D)
               end, Deliveries).
 
-process_delivery(CurrTimer, Exchange, Type, Delivery) ->
-    case get_delay(Delivery) of
-        {ok, Delay} when Delay > 0, Delay =< ?ERL_MAX_T ->
-            internal_delay_message(CurrTimer,
-                                   Exchange, Type,
-                                   Delivery, Delay);
-        {ok, _} ->
-            nodelay;
-        {error, nodelay} ->
-            nodelay
-    end.
-
-get_delay(Delivery) ->
-    case msg_headers(Delivery) of
-        undefined ->
-            {error, nodelay};
-        H ->
-            case table_lookup(H, <<"x-delay">>) of
-                {Type, Delay} ->
-                    case check_int_arg(Type) of
-                        ok -> {ok, Delay};
-                        _  -> {error, nodelay}
-                    end;
-                _ ->
-                    {error, nodelay}
-            end
-    end.
-
 internal_delay_message(CurrTimer, Exchange, Type, Delivery, Delay) ->
     Now = rabbit_misc:now_to_ms(os:timestamp()),
     %% keys are timestamps in milliseconds,in the future
@@ -241,31 +205,6 @@ internal_delay_message(CurrTimer, Exchange, Type, Delivery, Delay) ->
             {ok, start_timer(Delay, make_key(DelayTS, Exchange, Type))};
         _  ->
             {ok, CurrTimer}
-    end.
-
-msg_headers(Delivery) ->
-    lists:foldl(fun (F, Acc) -> F(Acc) end,
-                Delivery,
-                [fun get_msg/1, fun get_content/1,
-                 fun get_props/1, fun get_headers/1]).
-
-get_msg(#delivery{message = Msg}) ->
-    Msg.
-
-get_content(#basic_message{content = Content}) ->
-    Content.
-
-get_props(#content{properties = Props}) ->
-    Props.
-
-get_headers(#'P_basic'{headers = H}) ->
-    H.
-
-%% adapted from rabbit_amqqueue.erl
-check_int_arg(Type) ->
-    case lists:member(Type, ?INTEGER_ARG_TYPES) of
-        true  -> ok;
-        false -> {error, {unacceptable_type, Type}}
     end.
 
 %% Key will be used upon message receipt to fetch

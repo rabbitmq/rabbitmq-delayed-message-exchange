@@ -32,6 +32,7 @@
 -behaviour(rabbit_exchange_type).
 
 -import(rabbit_misc, [table_lookup/2]).
+-import(rabbit_delayed_message_utils, [get_delay/1]).
 
 -export([description/0, serialise_events/0, route/2]).
 -export([validate/1, validate_binding/2,
@@ -39,6 +40,7 @@
          add_binding/3, remove_bindings/3, assert_args_equivalence/2]).
 
 -define(EXCHANGE(Ex), (exchange_module(Ex))).
+-define(ERL_MAX_T, 4294967295). %% Max timer delay, per Erlang docs.
 
 %%----------------------------------------------------------------------------
 
@@ -90,7 +92,12 @@ serialise_events() -> false.
 %%----------------------------------------------------------------------------
 
 delay_message(Exchange, Type, Delivery) ->
-    rabbit_delayed_message:delay_message(Exchange, Type, Delivery).
+    case get_delay(Delivery) of
+        {ok, Delay} when Delay > 0, Delay =< ?ERL_MAX_T ->
+            rabbit_delayed_message:delay_message(Exchange, Type, Delivery, Delay);
+        _ ->
+            nodelay
+    end.
 
 %% assumes the type is set in the args and that validate/1 did its job
 exchange_module(Ex) ->
