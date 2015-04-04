@@ -50,7 +50,7 @@ description() ->
 
 route(X, Delivery) ->
     Type = ?EXCHANGE(X),
-    case delay_message(X, Type, Delivery) of
+    case delay_message(X, Delivery) of
         nodelay ->
             %% route the message using proxy module
             Type:route(X, Delivery);
@@ -61,7 +61,7 @@ route(X, Delivery) ->
 validate(#exchange{arguments = Args} = X) ->
     case table_lookup(Args, <<"x-delayed-type">>) of
         {_ArgType, Type} when is_binary(Type) ->
-            _Type = rabbit_exchange:check_type(Type),
+            rabbit_exchange:check_type(Type),
             ?EXCHANGE(X):validate(X);
         _ ->
             rabbit_misc:protocol_error(precondition_failed,
@@ -91,10 +91,10 @@ serialise_events() -> false.
 
 %%----------------------------------------------------------------------------
 
-delay_message(Exchange, Type, Delivery) ->
+delay_message(Exchange, Delivery) ->
     case get_delay(Delivery) of
         {ok, Delay} when Delay > 0, Delay =< ?ERL_MAX_T ->
-            rabbit_delayed_message:delay_message(Exchange, Type, Delivery, Delay);
+            rabbit_delayed_message:delay_message(Exchange, Delivery, Delay);
         _ ->
             nodelay
     end.

@@ -32,7 +32,7 @@
 
 -behaviour(gen_server).
 
--export([start_link/0, delay_message/4, setup_mnesia/0, disable_plugin/0, go/0]).
+-export([start_link/0, delay_message/3, setup_mnesia/0, disable_plugin/0, go/0]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
          code_change/3]).
 
@@ -42,16 +42,16 @@
 
 -type t_reference() :: reference().
 -type delay() :: non_neg_integer().
--type exchange_module() :: atom().
 
 
--spec delay_message(rabbit_types:exchange(), exchange_module(),
+-spec delay_message(rabbit_types:exchange(),
                     rabbit_types:delivery()) ->
                            nodelay | {ok, t_reference().
 
 -spec internal_delay_message(t_reference(),
-                             rabbit_types:exchange(), exchange_module(),
-                             rabbit_types:delivery(), delay()) ->
+                             rabbit_types:exchange(),
+                             rabbit_types:delivery(),
+                             delay()) ->
                                     nodelay | {ok, t_reference()}.
 
 -endif.
@@ -66,8 +66,7 @@
 
 -record(delay_key,
         { timestamp, %% timestamp delay
-          exchange,  %% rabbit_types:exchange()
-          type       %% proxied exchange type
+          exchange   %% rabbit_types:exchange()
         }).
 
 -record(delay_entry,
@@ -89,8 +88,8 @@ start_link() ->
 go() ->
     gen_server:cast(?MODULE, go).
 
-delay_message(Exchange, Type, Delivery, Delay) ->
-    gen_server:call(?MODULE, {delay_message, Exchange, Type, Delivery, Delay},
+delay_message(Exchange, Delivery, Delay) ->
+    gen_server:call(?MODULE, {delay_message, Exchange, Delivery, Delay},
                     infinity).
 
 setup_mnesia() ->
@@ -116,9 +115,9 @@ disable_plugin() ->
 init([]) ->
     {ok, #state{timer = make_ref()}}.
 
-handle_call({delay_message, Exchange, Type, Delivery, Delay},
+handle_call({delay_message, Exchange, Delivery, Delay},
             _From, State = #state{timer = CurrTimer}) ->
-    Reply = internal_delay_message(CurrTimer, Exchange, Type, Delivery, Delay),
+    Reply = internal_delay_message(CurrTimer, Exchange, Delivery, Delay),
     State2 = case Reply of
                  {ok, NewTimer} ->
                      State#state{timer = NewTimer};
@@ -170,7 +169,7 @@ maybe_delay_first(CurrTimer) ->
             CurrTimer
     end.
 
-route(#delay_key{exchange = Ex, type = _Type}, Deliveries) ->
+route(#delay_key{exchange = Ex}, Deliveries) ->
     lists:map(fun (#delay_entry{delivery = D}) ->
                       D2 = swap_delay_header(D),
                       Dests = rabbit_exchange:route(Ex, D2),
@@ -178,14 +177,14 @@ route(#delay_key{exchange = Ex, type = _Type}, Deliveries) ->
                       rabbit_amqqueue:deliver(Qs, D2)
               end, Deliveries).
 
-internal_delay_message(CurrTimer, Exchange, Type, Delivery, Delay) ->
+internal_delay_message(CurrTimer, Exchange, Delivery, Delay) ->
     Now = rabbit_misc:now_to_ms(os:timestamp()),
     %% keys are timestamps in milliseconds,in the future
     DelayTS = Now + Delay,
     mnesia:dirty_write(?INDEX_TABLE_NAME,
-                       make_index(DelayTS, Exchange, Type)),
+                       make_index(DelayTS, Exchange)),
     mnesia:dirty_write(?TABLE_NAME,
-                       make_delay(DelayTS, Exchange, Type, Delivery)),
+                       make_delay(DelayTS, Exchange, Delivery)),
     case erlang:read_timer(CurrTimer) of
         false ->
             %% last timer expired, we set a new timer for
@@ -198,12 +197,12 @@ internal_delay_message(CurrTimer, Exchange, Type, Delivery, Delay) ->
                     {ok, start_timer(FirstTS - Now, Key)};
                 _ ->
                     %% empty table or DelayTS <= FirstTS
-                    {ok, start_timer(Delay, make_key(DelayTS, Exchange, Type))}
+                    {ok, start_timer(Delay, make_key(DelayTS, Exchange))}
             end;
         CurrMS when Delay < CurrMS ->
             %% Current timer lasts longer that new message delay
             erlang:cancel_timer(CurrTimer),
-            {ok, start_timer(Delay, make_key(DelayTS, Exchange, Type))};
+            {ok, start_timer(Delay, make_key(DelayTS, Exchange))};
         _  ->
             {ok, CurrTimer}
     end.
@@ -213,19 +212,18 @@ internal_delay_message(CurrTimer, Exchange, Type, Delivery, Delay) ->
 start_timer(Delay, Key) ->
     erlang:start_timer(max(0, Delay), self(), {deliver, Key}).
 
-make_delay(DelayTS, Exchange, Type, Delivery) ->
-    #delay_entry{delay_key = make_key(DelayTS, Exchange, Type),
+make_delay(DelayTS, Exchange, Delivery) ->
+    #delay_entry{delay_key = make_key(DelayTS, Exchange),
                  delivery  = Delivery,
                  ref       = make_ref()}.
 
-make_index(DelayTS, Exchange, Type) ->
-    #delay_index{delay_key = make_key(DelayTS, Exchange, Type),
+make_index(DelayTS, Exchange) ->
+    #delay_index{delay_key = make_key(DelayTS, Exchange),
                  const = true}.
 
-make_key(DelayTS, Exchange, Type) ->
+make_key(DelayTS, Exchange) ->
     #delay_key{timestamp = DelayTS,
-               exchange  = Exchange,
-               type      = Type}.
+               exchange  = Exchange}.
 
 append_to_atom(Atom, Append) when is_atom(Append) ->
     append_to_atom(Atom, atom_to_list(Append));
