@@ -49,11 +49,10 @@ description() ->
      {description, <<"Delayed Message Exchange.">>}].
 
 route(X, Delivery) ->
-    Type = ?EXCHANGE(X),
     case delay_message(X, Delivery) of
         nodelay ->
             %% route the message using proxy module
-            Type:route(X, Delivery);
+            ?EXCHANGE(X):route(X, Delivery);
         _ ->
             []
     end.
