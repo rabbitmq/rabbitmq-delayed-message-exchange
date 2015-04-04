@@ -67,7 +67,7 @@ validate(#exchange{arguments = Args} = X) ->
             rabbit_misc:protocol_error(precondition_failed,
                                        "Invalid argument, "
                                        "'x-delayed-type' must be"
-                                       "an existing exchnage type",
+                                       "an existing exchange type",
                                        [])
     end.
 
