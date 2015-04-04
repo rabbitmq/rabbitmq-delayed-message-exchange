@@ -59,8 +59,6 @@
 -define(SERVER, ?MODULE).
 -define(TABLE_NAME, append_to_atom(?MODULE, node())).
 -define(INDEX_TABLE_NAME, append_to_atom(?TABLE_NAME, "_index")).
--define(INTEGER_ARG_TYPES, [byte, short, signedint, long]).
--define(ERL_MAX_T, 4294967295). %% Max timer delay, per Erlang docs.
 
 -record(state, {timer}).
 
