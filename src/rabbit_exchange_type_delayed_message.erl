@@ -71,8 +71,6 @@ validate(#exchange{arguments = Args} = X) ->
                                        [])
     end.
 
-validate_binding(_X, #binding{destination = #resource{kind = exchnage}}) ->
-    {error, {binding_invalid, "e2e bindings not supported", []}};
 validate_binding(X, B) ->
     ?EXCHANGE(X):validate_binding(X, B).
 create(Tx, X) ->
