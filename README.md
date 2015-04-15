@@ -10,7 +10,14 @@ delivered to the respective queues after `x-delay` milliseconds.
 
 ## Installing ##
 
-TODO (I assume the plugin will be offered from community-plugins).
+Install the corresponding .ez files from our
+[Community Plugins page](http://www.rabbitmq.com/community-plugins.html).
+
+Then run the following command:
+
+```bash
+rabbitmq-plugins enable rabbitmq_delayed_message_exchange
+```
 
 ## Usage ##
 
