@@ -75,6 +75,29 @@ different exchange type, like `"topic"` for example. You can also
 specify exchange types provided by plugins. Note that this argument is
 **required** and **must** refer to an **existing exchange type**.
 
+## Performance Impact ##
+
+Due to the `"x-delayed-type"` argument, one could use this exchange in
+place of other exchanges, since the `"x-delayed-message"` exchange
+will just act as proxy. Note that there might be some performance
+implications if you do this.
+
+For each message that crosses an `"x-delayed-message"` exchange, the
+plugin will try to determine if the message has to be expired by
+making sure the delay is within range, ie: `Delay > 0, Delay =<
+?ERL_MAX_T` (In Erlang a timer can be set up to (2^32)-1 milliseconds
+in the future).
+
+If the previous condition holds, then the message will be persisted to
+Mnesia and some other logic will kick in to determine if this
+particular message delay needs to replace the current scheduled timer
+and so on.
+
+This means that while one _could_ use this exchange in place of a
+_direct_ or _fanout_ exchange (or any other exchange for that matter),
+_it will be slower_ than using the actual exchange. If you don't need
+to delay messages, then use the actual exchange.
+
 ## Limitations
 
 Mandatory flag is not supported by this exchange: we cannot be sure that
