@@ -75,6 +75,14 @@ different exchange type, like `"topic"` for example. You can also
 specify exchange types provided by plugins. Note that this argument is
 **required** and **must** refer to an **existing exchange type**.
 
+## Limitations
+
+Mandatory flag is not supported by this exchange: we cannot be sure that
+at the future publishing point in time
+
+ * there is at least one queue we can route to
+ * the original connection is still around to send a `basic.return` to
+
 ## Disabling the Plugin ##
 
 You can disable this plugin by calling `rabbitmq-plugins disable
