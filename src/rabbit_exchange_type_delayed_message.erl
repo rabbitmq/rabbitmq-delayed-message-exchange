@@ -59,6 +59,12 @@ route(X, Delivery) ->
 
 validate(#exchange{arguments = Args} = X) ->
     case table_lookup(Args, <<"x-delayed-type">>) of
+        {_ArgType, <<"x-delayed-message">>} ->
+            rabbit_misc:protocol_error(precondition_failed,
+                                       "Invalid argument, "
+                                       "'x-delayed-message' can't be used"
+                                       "for 'x-delayed-type'",
+                                       []);
         {_ArgType, Type} when is_binary(Type) ->
             rabbit_exchange:check_type(Type),
             ?EXCHANGE(X):validate(X);
