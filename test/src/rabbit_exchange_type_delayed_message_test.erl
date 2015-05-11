@@ -39,6 +39,15 @@ wrong_exchange_argument_type_test() ->
     ?assertExit(_, amqp_channel:call(Chan, make_exchange(Ex, Type))),
     ok.
 
+exchange_argument_type_not_self_test() ->
+    {ok, Conn} = amqp_connection:start(#amqp_params_network{}),
+    {ok, Chan} = amqp_connection:open_channel(Conn),
+    Ex = <<"fail">>,
+    Type = <<"x-delayed-message">>,
+    process_flag(trap_exit, true),
+    ?assertExit(_, amqp_channel:call(Chan, make_exchange(Ex, Type))),
+    ok.
+
 routing_topic_test() ->
     BKs = [<<"a.b.c">>, <<"a.*.c">>, <<"a.#">>],
     RKs = [<<"a.b.c">>, <<"a.z.c">>, <<"a.j.k">>, <<"b.b.c">>],
