@@ -8,6 +8,10 @@ then publish messages with the custom header `x-delay` expressing in
 milliseconds a delay time for the message. The message will be
 delivered to the respective queues after `x-delay` milliseconds.
 
+## Supported RabbitMQ Versions
+
+This plugin targest RabbitMQ 3.5.3 and later versions.
+
 ## Installing ##
 
 Install the corresponding .ez files from our
