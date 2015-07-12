@@ -62,7 +62,7 @@ validate(#exchange{arguments = Args} = X) ->
         {_ArgType, <<"x-delayed-message">>} ->
             rabbit_misc:protocol_error(precondition_failed,
                                        "Invalid argument, "
-                                       "'x-delayed-message' can't be used"
+                                       "'x-delayed-message' can't be used "
                                        "for 'x-delayed-type'",
                                        []);
         {_ArgType, Type} when is_binary(Type) ->
@@ -71,7 +71,7 @@ validate(#exchange{arguments = Args} = X) ->
         _ ->
             rabbit_misc:protocol_error(precondition_failed,
                                        "Invalid argument, "
-                                       "'x-delayed-type' must be"
+                                       "'x-delayed-type' must be "
                                        "an existing exchange type",
                                        [])
     end.
