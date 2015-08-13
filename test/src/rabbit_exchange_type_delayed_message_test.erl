@@ -82,8 +82,14 @@ routing_test0(BKs, RKs, ExType, Count) ->
     %% message delay will be 0, we are testing routing here
     Msgs = [0],
 
+    amqp_channel:call(Chan, #'confirm.select'{}),
+
     [publish_messages(Chan, Ex, K, Msgs) ||
         K <- RKs],
+
+    % ensure that the messages have been delivered to the queues
+    % before asking for the message count
+    amqp_channel:wait_for_confirms_or_die(Chan),
 
     #'queue.declare_ok'{message_count = MCount} =
         amqp_channel:call(Chan, make_queue(Q)),
