@@ -37,6 +37,7 @@ wrong_exchange_argument_type_test() ->
     Type = <<"x-not-valid-type">>,
     process_flag(trap_exit, true),
     ?assertExit(_, amqp_channel:call(Chan, make_exchange(Ex, Type))),
+    amqp_connection:close(Conn),
     ok.
 
 exchange_argument_type_not_self_test() ->
@@ -46,6 +47,7 @@ exchange_argument_type_not_self_test() ->
     Type = <<"x-delayed-message">>,
     process_flag(trap_exit, true),
     ?assertExit(_, amqp_channel:call(Chan, make_exchange(Ex, Type))),
+    amqp_connection:close(Conn),
     ok.
 
 routing_topic_test() ->
