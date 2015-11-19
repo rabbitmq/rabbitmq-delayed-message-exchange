@@ -113,7 +113,7 @@ at the future publishing point in time
 ## Disabling the Plugin ##
 
 You can disable this plugin by calling `rabbitmq-plugins disable
-rabbitmq_delayed_messaging` but note that **ALL DELAYED MESSAGES THAT
+rabbitmq_delayed_message_exchange` but note that **ALL DELAYED MESSAGES THAT
 HAVEN'T BEEN DELIVERED WILL BE LOST**.
 
 ## Plugin Status ##
