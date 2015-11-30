@@ -29,7 +29,7 @@ start_other_node({Name, Port}, Config) ->
                      os:getenv("RABBITMQ_ENABLED_PLUGINS_FILE")).
 
 start_other_node({Name, Port}, Config, PluginsFile) ->
-    make("-C " ++ plugin_dir() ++ " OTHER_NODE=" ++ Name ++
+    make(" OTHER_NODE=" ++ Name ++
          " OTHER_PORT=" ++ integer_to_list(Port) ++
          " OTHER_CONFIG=" ++ Config ++
          " OTHER_PLUGINS=" ++ PluginsFile ++
@@ -37,23 +37,23 @@ start_other_node({Name, Port}, Config, PluginsFile) ->
     timer:sleep(1000).
 
 stop_other_node({Name, _Port}) ->
-    make("-C " ++ plugin_dir() ++ " OTHER_NODE=" ++ Name ++
+    make(" OTHER_NODE=" ++ Name ++
          " stop-other-node"),
     timer:sleep(1000).
 
 reset_other_node({Name, _Port}) ->
-    make("-C " ++ plugin_dir() ++ " OTHER_NODE=" ++ Name ++
+    make(" OTHER_NODE=" ++ Name ++
          " reset-other-node"),
     timer:sleep(1000).
 
 cluster_other_node({Name, _Port}, {MainName, _Port2}) ->
-    make("-C " ++ plugin_dir() ++ " OTHER_NODE=" ++ Name ++
+    make(" OTHER_NODE=" ++ Name ++
          " MAIN_NODE=" ++ atom_to_list(n(MainName)) ++
          " cluster-other-node"),
     timer:sleep(1000).
 
 rabbitmqctl(Args) ->
-    execute(plugin_dir() ++ "/../rabbitmq-server/scripts/rabbitmqctl " ++ Args),
+    execute(os:getenv("RABBITMQCTL") ++ " " ++ Args),
     timer:sleep(100).
 
 make(Args) ->

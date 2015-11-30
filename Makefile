@@ -17,5 +17,8 @@ include erlang.mk
 # Testing.
 # --------------------------------------------------------------------
 
+WITH_BROKER_TEST_MAKEVARS := \
+        RABBITMQ_CONFIG_FILE=$(CURDIR)/etc/rabbit-test
+
 WITH_BROKER_TEST_COMMANDS := \
 	rabbit_exchange_type_delayed_message_test:test()
