@@ -1,6 +1,7 @@
 PROJECT = rabbitmq_delayed_message_exchange
 
-DEPS = amqp_client rabbit
+DEPS = amqp_client
+TEST_DEPS = rabbit
 
 DEP_PLUGINS = rabbit_common/mk/rabbitmq-plugin.mk
 
@@ -19,6 +20,5 @@ include erlang.mk
 
 WITH_BROKER_TEST_MAKEVARS := \
         RABBITMQ_CONFIG_FILE=$(CURDIR)/etc/rabbit-test
-
 WITH_BROKER_TEST_COMMANDS := \
 	rabbit_exchange_type_delayed_message_test:test()
