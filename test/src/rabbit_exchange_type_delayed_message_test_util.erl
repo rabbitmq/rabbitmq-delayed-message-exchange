@@ -22,7 +22,7 @@
 -compile(export_all).
 
 start_other_node({Name, Port}) ->
-    start_other_node({Name, Port}, Name).
+    start_other_node({Name, Port}, "rabbit-" ++ Name).
 
 start_other_node({Name, Port}, Config) ->
     start_other_node({Name, Port}, Config,
