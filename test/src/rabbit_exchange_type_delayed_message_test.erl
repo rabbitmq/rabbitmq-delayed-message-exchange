@@ -21,8 +21,8 @@
 -include_lib("eunit/include/eunit.hrl").
 -include_lib("amqp_client/include/amqp_client.hrl").
 
--define(RABBIT, {"rabbit-test",  5672}).
--define(HARE,   {"rabbit-hare", 5673}).
+-define(RABBIT, {"test", 5672}).
+-define(HARE,   {"hare", 5673}).
 
 -import(rabbit_exchange_type_delayed_message_test_util,
         [start_other_node/1, reset_other_node/1, stop_other_node/1]).
