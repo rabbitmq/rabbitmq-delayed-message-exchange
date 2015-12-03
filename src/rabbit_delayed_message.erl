@@ -206,7 +206,7 @@ internal_delay_message(CurrTimer, Exchange, Delivery, Delay) ->
     end.
 
 %% Key will be used upon message receipt to fetch
-%% the deliveries form the database
+%% the deliveries from the database
 start_timer(Delay, Key) ->
     erlang:start_timer(erlang:max(0, Delay), self(), {deliver, Key}).
 
