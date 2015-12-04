@@ -21,7 +21,7 @@
 
 -export([get_delay/1, swap_delay_header/1]).
 
--define(INTEGER_ARG_TYPES, [byte, short, signedint, long]).
+-define(INTEGER_ARG_TYPES, [byte, short, signedint, long, unsignedbyte, unsignedshort, unsignedint]).
 
 -import(rabbit_misc, [table_lookup/2, set_table_value/4]).
 
