@@ -46,7 +46,7 @@
 
 -spec delay_message(rabbit_types:exchange(),
                     rabbit_types:delivery()) ->
-                           nodelay | {ok, t_reference().
+                           nodelay | {ok, t_reference()}.
 
 -spec internal_delay_message(t_reference(),
                              rabbit_types:exchange(),
