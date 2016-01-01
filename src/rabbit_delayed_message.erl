@@ -10,8 +10,8 @@
 %%
 %%  The Original Code is RabbitMQ Delayed Message
 %%
-%%  The Initial Developer of the Original Code is GoPivotal, Inc.
-%%  Copyright (c) 2007-2015 GoPivotal, Inc.  All rights reserved.
+%%  The Initial Developer of the Original Code is Pivotal Software, Inc.
+%%  Copyright (c) 2007-2016 Pivotal Software, Inc.  All rights reserved.
 %%
 
 %% NOTE that this module uses os:timestamp/0 but in the future Erlang
