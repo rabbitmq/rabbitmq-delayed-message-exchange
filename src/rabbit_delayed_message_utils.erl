@@ -23,6 +23,8 @@
 
 -define(INTEGER_ARG_TYPES, [byte, short, signedint, long, unsignedbyte, unsignedshort, unsignedint]).
 
+-define(STRING_ARG_TYPES, [longstr, shortstr]).
+
 -import(rabbit_misc, [table_lookup/2, set_table_value/4]).
 
 get_delay(Delivery) ->
@@ -38,7 +40,11 @@ get_delay_header(H) ->
         {Type, Delay} ->
             case check_int_arg(Type) of
                 ok -> {ok, Delay};
-                _  -> {error, nodelay}
+                _  -> 
+                    case try_convert_to_int(Type, Delay) of
+                        {ok, Converted} -> {ok, Converted};
+                        _               -> {error, nodelay}
+                    end
             end;
         _ ->
             {error, nodelay}
@@ -90,6 +96,12 @@ get_props(#content{properties = Props}) ->
 
 get_headers(#'P_basic'{headers = H}) ->
     H.
+
+try_convert_to_int(Type, Delay) ->
+    case lists:member(Type, ?STRING_ARG_TYPES) of
+        true  -> {ok, binary_to_integer(Delay)};
+        false -> {error, {unacceptable_type, Type}}
+    end.
 
 %% adapted from rabbit_amqqueue.erl
 check_int_arg(Type) ->
