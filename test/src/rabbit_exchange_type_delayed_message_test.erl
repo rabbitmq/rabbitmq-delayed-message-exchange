@@ -28,7 +28,7 @@
         [start_other_node/1, reset_other_node/1, stop_other_node/1]).
 
 test() ->
-    ok = eunit:test(tests(?MODULE, 60), [verbose]).
+    eunit:test(tests(?MODULE, 60), [verbose]).
 
 wrong_exchange_argument_type_test() ->
     {ok, Conn} = amqp_connection:start(#amqp_params_network{}),
