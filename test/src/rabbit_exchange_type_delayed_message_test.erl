@@ -203,6 +203,25 @@ node_restart_test() ->
 
     ok.
 
+string_delay_header_test() ->
+    {ok, Conn} = amqp_connection:start(#amqp_params_network{}),
+    {ok, Chan} = amqp_connection:open_channel(Conn),
+
+    Ex = <<"e3">>,
+    Q = <<"q1">>,
+
+    setup_fabric(Chan, make_exchange(Ex, <<"direct">>), make_queue(Q)),
+
+    Msgs = [500, 100, 300, 200, 100, 400],
+
+    publish_messages(Chan, Ex, <<>>, Msgs, longstr),
+
+    {ok, Result} = consume(Chan, Q, Msgs),
+    Sorted = lists:sort(Msgs),
+    ?assertEqual(Sorted, Result),
+
+    ok.
+
 setup_fabric(Chan, ExDeclare, QueueDeclare) ->
     setup_fabric(Chan, ExDeclare, QueueDeclare, <<>>).
 
@@ -230,10 +249,13 @@ publish_messages(Chan, Ex, Msgs) ->
     publish_messages(Chan, Ex, <<>>, Msgs).
 
 publish_messages(Chan, Ex, RK, Msgs) ->
+    publish_messages(Chan, Ex, RK, Msgs, signedint).
+
+publish_messages(Chan, Ex, RK, Msgs, HeaderType) ->
         [amqp_channel:call(Chan,
                            #'basic.publish'{exchange = Ex,
                                             routing_key = RK},
-                           make_msg(V)) || V <- Msgs].
+                           make_msg(HeaderType, V)) || V <- Msgs].
 
 consume(Chan, Q, Msgs) ->
     #'basic.consume_ok'{} =
@@ -282,13 +304,18 @@ make_durable_exchange(Ex, Type) ->
       auto_delete = false
      }.
 
-make_msg(V) ->
+make_msg(HeaderType, V) ->
     #amqp_msg{props = #'P_basic'{
-                         headers = make_h(V)},
+                         headers = make_h(HeaderType, V)},
               payload = term_to_binary(V)}.
 
 make_h(V) ->
-    [{<<"x-delay">>, signedint, V}].
+    make_h(signedint, V).
+
+make_h(signedint, V) ->
+    [{<<"x-delay">>, signedint, V}];
+make_h(longstr, V) ->
+    [{<<"x-delay">>, longstr, integer_to_binary(V)}].
 
 tests(Module, Timeout) ->
     {foreach, fun() -> ok end,
