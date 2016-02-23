@@ -118,9 +118,9 @@ e2e_test0(Msgs) ->
     {ok, Conn} = amqp_connection:start(#amqp_params_network{}),
     {ok, Chan} = amqp_connection:open_channel(Conn),
 
-    Ex = <<"e1">>,
-    Ex2 = <<"e2">>,
-    Q = <<"q">>,
+    Ex = <<"e1-e2e-test">>,
+    Ex2 = <<"e2-e2e-test">>,
+    Q = <<"q-e2e-test">>,
 
     declare_exchange(Chan, make_exchange(Ex, <<"direct">>)),
 
@@ -151,8 +151,8 @@ delay_order_test() ->
     {ok, Conn} = amqp_connection:start(#amqp_params_network{}),
     {ok, Chan} = amqp_connection:open_channel(Conn),
 
-    Ex = <<"e1">>,
-    Q = <<"q">>,
+    Ex = <<"e1-order-test">>,
+    Q = <<"q-order-test">>,
 
     setup_fabric(Chan, make_exchange(Ex, <<"direct">>), make_queue(Q)),
 
@@ -172,8 +172,8 @@ node_restart_test() ->
     {ok, Conn} = amqp_connection:start(#amqp_params_network{port=5673}),
     {ok, Chan} = amqp_connection:open_channel(Conn),
 
-    Ex = <<"e1">>,
-    Q = <<"q">>,
+    Ex = <<"e1-restart-test">>,
+    Q = <<"q-restart-test">>,
 
     setup_fabric(Chan, make_durable_exchange(Ex, <<"direct">>),
                  make_durable_queue(Q)),
@@ -261,7 +261,7 @@ consume(Chan, Q, Msgs) ->
     #'basic.consume_ok'{} =
         amqp_channel:subscribe(Chan, #'basic.consume'{queue  = Q,
                                                       no_ack = true}, self()),
-    collect(length(Msgs), lists:max(Msgs) + 1000).
+    collect(length(Msgs), lists:max(Msgs) + 3000).
 
 
 collect(N, Timeout) ->
