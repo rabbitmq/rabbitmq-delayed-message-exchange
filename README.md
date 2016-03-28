@@ -10,7 +10,7 @@ delivered to the respective queues after `x-delay` milliseconds.
 
 ## Supported RabbitMQ Versions
 
-This plugin targets RabbitMQ 3.5.3 and later versions.
+This plugin targets RabbitMQ 3.5.7 and later versions.
 
 ## Installing ##
 
