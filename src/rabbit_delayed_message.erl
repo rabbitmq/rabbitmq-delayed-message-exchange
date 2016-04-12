@@ -35,6 +35,7 @@
 -export([start_link/0, delay_message/3, setup_mnesia/0, disable_plugin/0, go/0]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
          code_change/3]).
+-export([messages_delayed/1]).
 
 -import(rabbit_delayed_message_utils, [swap_delay_header/1]).
 
@@ -107,6 +108,13 @@ disable_plugin() ->
     mnesia:delete_table(?INDEX_TABLE_NAME),
     mnesia:delete_table(?TABLE_NAME),
     ok.
+
+
+messages_delayed(Exchange) ->
+    MatchHead = make_index('_', Exchange),
+    ets:select_count(?INDEX_TABLE_NAME, [{MatchHead, [], ['$_']}]).
+
+
 
 %%--------------------------------------------------------------------
 
