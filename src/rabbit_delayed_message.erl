@@ -109,12 +109,11 @@ disable_plugin() ->
     mnesia:delete_table(?TABLE_NAME),
     ok.
 
-
 messages_delayed(Exchange) ->
-    MatchHead = make_index('_', Exchange),
-    ets:select_count(?INDEX_TABLE_NAME, [{MatchHead, [], ['$_']}]).
-
-
+    MatchHead = #delay_entry{delay_key = make_key('_', Exchange),
+                             delivery  = '_', ref       = '_'},
+    Delays = mnesia:dirty_select(?TABLE_NAME, [{MatchHead, [], ['$_']}]),
+    length(Delays).
 
 %%--------------------------------------------------------------------
 
@@ -131,7 +130,6 @@ handle_call({delay_message, Exchange, Delivery, Delay},
                      State
              end,
     {reply, Reply, State2};
-
 handle_call(_Req, _From, State) ->
     {reply, unknown_request, State}.
 

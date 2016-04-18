@@ -166,6 +166,35 @@ delay_order_test() ->
 
     ok.
 
+
+delayed_messages_count_test() ->
+    {ok, Conn} = amqp_connection:start(#amqp_params_network{}),
+    {ok, Chan} = amqp_connection:open_channel(Conn),
+
+    Ex = <<"e1_count">>,
+    Q = <<"q">>,
+
+    setup_fabric(Chan, make_exchange(Ex, <<"direct">>), make_queue(Q)),
+
+    Msgs = [500, 200, 300, 200, 300, 400],
+
+
+    publish_messages(Chan, Ex, Msgs),
+
+    % Let messages schedule.
+    timer:sleep(50),
+    Exchanges = rabbit_exchange:info_all(<<"/">>),
+    [Exchange] = lists:filter(
+        fun(X) ->
+            {resource,<<"/">>,exchange,Ex} == proplists:get_value(name, X)
+        end,
+        Exchanges),
+    {messages_delayed, 6} = proplists:lookup(messages_delayed, Exchange),
+    consume(Chan, Q, Msgs),
+
+    ok.
+
+
 node_restart_test() ->
     start_other_node(?HARE),
 
