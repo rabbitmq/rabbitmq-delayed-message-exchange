@@ -1,6 +1,6 @@
 PROJECT = rabbitmq_delayed_message_exchange
 
-# DEPS = rabbit
+DEPS = rabbit
 TEST_DEPS = amqp_client
 
 DEP_PLUGINS = rabbit_common/mk/rabbitmq-plugin.mk
