@@ -4,4 +4,5 @@
   {modules, []},
   {mod, {rabbit_delayed_message_app, []}},
   {registered, []},
+  {broker_version_requirements, []},
   {applications, [kernel, stdlib, rabbit]}]}.
