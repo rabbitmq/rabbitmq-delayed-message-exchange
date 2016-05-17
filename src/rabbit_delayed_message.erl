@@ -160,7 +160,7 @@ maybe_delay_first(CurrTimer) ->
         %% destructuring to prevent matching '$end_of_table'
         #delay_key{timestamp = FirstTS} = Key2 ->
             %% there are messages that expired and need to be delivered
-            Now = time_compat:erlang_system_time(milli_seconds),
+            Now = erlang:system_time(milli_seconds),
             start_timer(FirstTS - Now, Key2);
         _ ->
             %% nothing to do
@@ -176,7 +176,7 @@ route(#delay_key{exchange = Ex}, Deliveries) ->
               end, Deliveries).
 
 internal_delay_message(CurrTimer, Exchange, Delivery, Delay) ->
-    Now = time_compat:erlang_system_time(milli_seconds),
+    Now = erlang:system_time(milli_seconds),
     %% keys are timestamps in milliseconds,in the future
     DelayTS = Now + Delay,
     mnesia:dirty_write(?INDEX_TABLE_NAME,
