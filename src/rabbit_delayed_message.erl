@@ -59,6 +59,7 @@
 -define(SERVER, ?MODULE).
 -define(TABLE_NAME, append_to_atom(?MODULE, node())).
 -define(INDEX_TABLE_NAME, append_to_atom(?TABLE_NAME, "_index")).
+-define(IDLE_DELAY_MS, 60 * 60 * 1000).
 
 -record(state, {timer}).
 
@@ -127,14 +128,14 @@ handle_call({delay_message, Exchange, Delivery, Delay},
 handle_call(_Req, _From, State) ->
     {reply, unknown_request, State}.
 
-handle_cast(go, State = #state{timer = CurrTimer}) ->
-    maybe_delay_first(CurrTimer),
-    {noreply, State};
+handle_cast(go, State = #state{}) ->
+    delay_first(),
+    {noreply, State#state{timer = delay_first()}};
 handle_cast(_C, State) ->
     {noreply, State}.
 
 handle_info({timeout, _TimerRef, {deliver, Key}},
-            State = #state{timer = CurrTimer}) ->
+            State = #state{}) ->
     case mnesia:dirty_read(?TABLE_NAME, Key) of
         [] ->
             ok;
@@ -144,7 +145,7 @@ handle_info({timeout, _TimerRef, {deliver, Key}},
             mnesia:dirty_delete(?INDEX_TABLE_NAME, Key)
     end,
 
-    {noreply, State#state{timer = maybe_delay_first(CurrTimer)}};
+    {noreply, State#state{timer = delay_first()}};
 handle_info(_I, State) ->
     {noreply, State}.
 
@@ -155,7 +156,7 @@ code_change(_, State, _) -> {ok, State}.
 
 %%--------------------------------------------------------------------
 
-maybe_delay_first(CurrTimer) ->
+delay_first() ->
     case mnesia:dirty_first(?INDEX_TABLE_NAME) of
         %% destructuring to prevent matching '$end_of_table'
         #delay_key{timestamp = FirstTS} = Key2 ->
@@ -163,8 +164,9 @@ maybe_delay_first(CurrTimer) ->
             Now = time_compat:erlang_system_time(milli_seconds),
             start_timer(FirstTS - Now, Key2);
         _ ->
-            %% nothing to do
-            CurrTimer
+            %% To avoid ugly special-cases on the enqueue path, always
+            %% keep a timer.  We set it far in the future to keep it cheap.
+            start_timer(?IDLE_DELAY_MS, 'idle_timeout')
     end.
 
 route(#delay_key{exchange = Ex}, Deliveries) ->
@@ -185,18 +187,7 @@ internal_delay_message(CurrTimer, Exchange, Delivery, Delay) ->
                        make_delay(DelayTS, Exchange, Delivery)),
     case erlang:read_timer(CurrTimer) of
         false ->
-            %% last timer expired, we set a new timer for
-            %% the next message to be delivered
-            case mnesia:dirty_first(?INDEX_TABLE_NAME) of
-                %% destructuring to prevent matching '$end_of_table'
-                #delay_key{timestamp = FirstTS} = Key
-                  when FirstTS < DelayTS ->
-                    %% there are messages that expired and need to be delivered
-                    {ok, start_timer(FirstTS - Now, Key)};
-                _ ->
-                    %% empty table or DelayTS <= FirstTS
-                    {ok, start_timer(Delay, make_key(DelayTS, Exchange))}
-            end;
+            {ok, CurrTimer};
         CurrMS when Delay < CurrMS ->
             %% Current timer lasts longer that new message delay
             erlang:cancel_timer(CurrTimer),
