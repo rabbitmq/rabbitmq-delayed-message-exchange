@@ -35,6 +35,7 @@
 -export([start_link/0, delay_message/3, setup_mnesia/0, disable_plugin/0, go/0]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
          code_change/3]).
+-export([messages_delayed/1]).
 
 -import(rabbit_delayed_message_utils, [swap_delay_header/1]).
 
@@ -108,6 +109,12 @@ disable_plugin() ->
     mnesia:delete_table(?TABLE_NAME),
     ok.
 
+messages_delayed(Exchange) ->
+    MatchHead = #delay_entry{delay_key = make_key('_', Exchange),
+                             delivery  = '_', ref       = '_'},
+    Delays = mnesia:dirty_select(?TABLE_NAME, [{MatchHead, [], ['$_']}]),
+    length(Delays).
+
 %%--------------------------------------------------------------------
 
 init([]) ->
@@ -123,7 +130,6 @@ handle_call({delay_message, Exchange, Delivery, Delay},
                      State
              end,
     {reply, Reply, State2};
-
 handle_call(_Req, _From, State) ->
     {reply, unknown_request, State}.
 

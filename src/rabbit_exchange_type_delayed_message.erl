@@ -38,6 +38,7 @@
 -export([validate/1, validate_binding/2,
          create/2, delete/3, policy_changed/2,
          add_binding/3, remove_bindings/3, assert_args_equivalence/2]).
+-export([info/1, info/2]).
 
 -define(EXCHANGE(Ex), (exchange_module(Ex))).
 -define(ERL_MAX_T, 4294967295). %% Max timer delay, per Erlang docs.
@@ -91,6 +92,18 @@ remove_bindings(Tx, X, Bs) ->
 assert_args_equivalence(X, Args) ->
     ?EXCHANGE(X):assert_args_equivalence(X, Args).
 serialise_events() -> false.
+
+info(Exchange) ->
+    info(Exchange, [messages_delayed]).
+
+info(Exchange, Items) ->
+    case lists:member(messages_delayed, Items) of
+        false -> [];
+        true  ->
+            [{messages_delayed,
+              rabbit_delayed_message:messages_delayed(Exchange)}]
+    end.
+
 
 %%----------------------------------------------------------------------------
 
