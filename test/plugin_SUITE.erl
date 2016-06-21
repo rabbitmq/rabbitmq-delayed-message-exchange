@@ -14,69 +14,116 @@
 %%  Copyright (c) 2007-2016 Pivotal Software, Inc.  All rights reserved.
 %%
 
--module(rabbit_exchange_type_delayed_message_test).
+-module(plugin_SUITE).
 
--export([test/0]).
+-compile(export_all).
 
+-include_lib("common_test/include/ct.hrl").
 -include_lib("eunit/include/eunit.hrl").
 -include_lib("amqp_client/include/amqp_client.hrl").
 
--define(RABBIT, {"test", 5672}).
--define(HARE,   {"hare", 5673}).
+all() ->
+    [
+      {group, non_parallel_tests}
+    ].
 
--import(rabbit_exchange_type_delayed_message_test_util,
-        [start_other_node/1, reset_other_node/1, stop_other_node/1]).
+groups() ->
+    [
+      {non_parallel_tests, [], [
+                                wrong_exchange_argument_type,
+                                exchange_argument_type_not_self,
+                                routing_topic,
+                                routing_direct,
+                                routing_fanout,
+                                e2e_nodelay,
+                                e2e_delay,
+                                delay_order,
+                                node_restart
+                               ]}
+    ].
 
-test() ->
-    ok = eunit:test(tests(?MODULE, 60), [verbose]).
 
-wrong_exchange_argument_type_test() ->
-    {ok, Conn} = amqp_connection:start(#amqp_params_network{}),
-    {ok, Chan} = amqp_connection:open_channel(Conn),
-    Ex = <<"fail">>,
+%% -------------------------------------------------------------------
+%% Setup/teardown.
+%% -------------------------------------------------------------------
+
+init_per_suite(Config) ->
+    rabbit_ct_helpers:log_environment(),
+    Config1 = rabbit_ct_helpers:set_config(Config, [
+        {rmq_nodename_suffix, ?MODULE}
+      ]),
+    rabbit_ct_helpers:run_setup_steps(Config1,
+      rabbit_ct_broker_helpers:setup_steps() ++
+      rabbit_ct_client_helpers:setup_steps()).
+
+end_per_suite(Config) ->
+    rabbit_ct_helpers:run_teardown_steps(Config,
+      rabbit_ct_client_helpers:teardown_steps() ++
+      rabbit_ct_broker_helpers:teardown_steps()).
+
+init_per_group(_, Config) ->
+    Config.
+
+end_per_group(_, Config) ->
+    Config.
+
+init_per_testcase(Testcase, Config) ->
+    TestCaseName = rabbit_ct_helpers:config_to_testcase_name(Config, Testcase),
+    BaseName = re:replace(TestCaseName, "/", "-", [global,{return,list}]),
+    Config1 = rabbit_ct_helpers:set_config(Config, {test_resource_name, BaseName}),
+    rabbit_ct_helpers:testcase_started(Config1, Testcase).
+
+end_per_testcase(Testcase, Config) ->
+    rabbit_ct_helpers:testcase_finished(Config, Testcase).
+
+%% -------------------------------------------------------------------
+%% Testcases
+%% -------------------------------------------------------------------
+
+wrong_exchange_argument_type(Config) ->
+    Chan =  rabbit_ct_client_helpers:open_channel(Config),
+    Ex = make_exchange_name(Config, "fail"),
     Type = <<"x-not-valid-type">>,
     process_flag(trap_exit, true),
     ?assertExit(_, amqp_channel:call(Chan, make_exchange(Ex, Type))),
-    amqp_connection:close(Conn),
+    rabbit_ct_client_helpers:close_channel(Chan),
     ok.
 
-exchange_argument_type_not_self_test() ->
-    {ok, Conn} = amqp_connection:start(#amqp_params_network{}),
-    {ok, Chan} = amqp_connection:open_channel(Conn),
-    Ex = <<"fail">>,
+exchange_argument_type_not_self(Config) ->
+    Chan =  rabbit_ct_client_helpers:open_channel(Config),
+    Ex = make_exchange_name(Config, "fail"),
     Type = <<"x-delayed-message">>,
     process_flag(trap_exit, true),
     ?assertExit(_, amqp_channel:call(Chan, make_exchange(Ex, Type))),
-    amqp_connection:close(Conn),
+    rabbit_ct_client_helpers:close_channel(Chan),
     ok.
 
-routing_topic_test() ->
+routing_topic(Config) ->
     BKs = [<<"a.b.c">>, <<"a.*.c">>, <<"a.#">>],
     RKs = [<<"a.b.c">>, <<"a.z.c">>, <<"a.j.k">>, <<"b.b.c">>],
     %% all except <<"b.b.c">> should be routed.
     Count = 3,
-    routing_test0(BKs, RKs, <<"topic">>, Count).
+    routing_test0(Config, BKs, RKs, <<"topic">>, Count).
 
-routing_direct_test() ->
+routing_direct(Config) ->
     BKs = [<<"mykey">>],
     RKs = [<<"mykey">>, <<"noroute">>, <<"mykey">>],
     %% all except <<"noroute">> should be routed.
     Count = 2,
-    routing_test0(BKs, RKs, <<"direct">>, Count).
+    routing_test0(Config, BKs, RKs, <<"direct">>, Count).
 
-routing_fanout_test() ->
+routing_fanout(Config) ->
     BKs = [<<"mykey">>, <<>>, <<"otherkey">>],
     RKs = [<<"mykey">>, <<"noroute">>, <<"mykey">>],
     %% all except <<"noroute">> should be routed.
     Count = 3,
-    routing_test0(BKs, RKs, <<"fanout">>, Count).
+    routing_test0(Config, BKs, RKs, <<"fanout">>, Count).
 
-routing_test0(BKs, RKs, ExType, Count) ->
-    {ok, Conn} = amqp_connection:start(#amqp_params_network{}),
-    {ok, Chan} = amqp_connection:open_channel(Conn),
+routing_test0(Config, BKs, RKs, ExType, Count) ->
+    Chan =  rabbit_ct_client_helpers:open_channel(Config),
 
-    Ex = <<"e1">>,
-    Q = <<"q">>,
+    Ex = make_exchange_name(Config, "1"),
+    Q = make_queue_name(Config, "1"),
 
     [setup_fabric(Chan, make_exchange(Ex, ExType), make_queue(Q), BRK) ||
         BRK <- BKs],
@@ -100,27 +147,25 @@ routing_test0(BKs, RKs, ExType, Count) ->
 
     amqp_channel:call(Chan, #'exchange.delete' { exchange = Ex }),
     amqp_channel:call(Chan, #'queue.delete' { queue = Q }),
-    amqp_channel:close(Chan),
-    amqp_connection:close(Conn),
+    rabbit_ct_client_helpers:close_channel(Chan),
     ok.
 
-e2e_nodelay_test() ->
+e2e_nodelay(Config) ->
     %% message delay will be 0,
     %% we are testing e2e without delays
-    e2e_test0([0]).
+    e2e_test0(Config, [0]).
 
-e2e_delay_test() ->
+e2e_delay(Config) ->
     %% message delay will be 0,
     %% we are testing e2e without delays
-    e2e_test0([500, 100, 300, 200, 100, 400]).
+    e2e_test0(Config, [500, 100, 300, 200, 100, 400]).
 
-e2e_test0(Msgs) ->
-    {ok, Conn} = amqp_connection:start(#amqp_params_network{}),
-    {ok, Chan} = amqp_connection:open_channel(Conn),
+e2e_test0(Config, Msgs) ->
+    Chan =  rabbit_ct_client_helpers:open_channel(Config),
 
-    Ex = <<"e1">>,
-    Ex2 = <<"e2">>,
-    Q = <<"q">>,
+    Ex = make_exchange_name(Config, "1"),
+    Ex2 = make_exchange_name(Config, "2"),
+    Q = make_queue_name(Config, "1"),
 
     declare_exchange(Chan, make_exchange(Ex, <<"direct">>)),
 
@@ -142,17 +187,14 @@ e2e_test0(Msgs) ->
     amqp_channel:call(Chan, #'exchange.delete' { exchange = Ex }),
     amqp_channel:call(Chan, #'exchange.delete' { exchange = Ex2 }),
     amqp_channel:call(Chan, #'queue.delete' { queue = Q }),
-    amqp_channel:close(Chan),
-    amqp_connection:close(Conn),
-
+    rabbit_ct_client_helpers:close_channel(Chan),
     ok.
 
-delay_order_test() ->
-    {ok, Conn} = amqp_connection:start(#amqp_params_network{}),
-    {ok, Chan} = amqp_connection:open_channel(Conn),
+delay_order(Config) ->
+    Chan =  rabbit_ct_client_helpers:open_channel(Config),
 
-    Ex = <<"e1">>,
-    Q = <<"q">>,
+    Ex = make_exchange_name(Config, "1"),
+    Q = make_queue_name(Config, "1"),
 
     setup_fabric(Chan, make_exchange(Ex, <<"direct">>), make_queue(Q)),
 
@@ -164,16 +206,14 @@ delay_order_test() ->
     Sorted = lists:sort(Msgs),
     ?assertEqual(Sorted, Result),
 
+    rabbit_ct_client_helpers:close_channel(Chan),
     ok.
 
-node_restart_test() ->
-    start_other_node(?HARE),
+node_restart(Config) ->
+    Chan = rabbit_ct_client_helpers:open_channel(Config),
 
-    {ok, Conn} = amqp_connection:start(#amqp_params_network{port=5673}),
-    {ok, Chan} = amqp_connection:open_channel(Conn),
-
-    Ex = <<"e1">>,
-    Q = <<"q">>,
+    Ex = make_exchange_name(Config, "1"),
+    Q = make_queue_name(Config, "1"),
 
     setup_fabric(Chan, make_durable_exchange(Ex, <<"direct">>),
                  make_durable_queue(Q)),
@@ -182,14 +222,9 @@ node_restart_test() ->
 
     publish_messages(Chan, Ex, Msgs),
 
-    amqp_channel:close(Chan),
-    amqp_connection:close(Conn),
+    rabbit_ct_broker_helpers:restart_node(Config, 0),
 
-    stop_other_node(?HARE),
-    start_other_node(?HARE),
-
-    {ok, Conn2} = amqp_connection:start(#amqp_params_network{port=5673}),
-    {ok, Chan2} = amqp_connection:open_channel(Conn2),
+    Chan2 =  rabbit_ct_client_helpers:open_channel(Config),
 
     {ok, Result} = consume(Chan2, Q, Msgs),
     Sorted = lists:sort(Msgs),
@@ -198,8 +233,7 @@ node_restart_test() ->
     amqp_channel:call(Chan2, #'exchange.delete' { exchange = Ex }),
     amqp_channel:call(Chan2, #'queue.delete' { queue = Q }),
 
-    reset_other_node(?HARE),
-    stop_other_node(?HARE),
+    rabbit_ct_client_helpers:close_channel(Chan2),
 
     ok.
 
@@ -295,3 +329,11 @@ tests(Module, Timeout) ->
      [{timeout, Timeout, fun () -> Module:F() end} ||
          {F, _Arity} <- proplists:get_value(exports, Module:module_info()),
          string:right(atom_to_list(F), 5) =:= "_test"]}.
+
+make_exchange_name(Config, Suffix) ->
+    B = rabbit_ct_helpers:get_config(Config, test_resource_name),
+    erlang:list_to_binary("x-" ++ B ++ "-" ++ Suffix).
+
+make_queue_name(Config, Suffix) ->
+    B = rabbit_ct_helpers:get_config(Config, test_resource_name),
+    erlang:list_to_binary("q-" ++ B ++ "-" ++ Suffix).
