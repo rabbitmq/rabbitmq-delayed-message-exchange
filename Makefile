@@ -1,6 +1,8 @@
 PROJECT = rabbitmq_delayed_message_exchange
 
-TEST_DEPS = amqp_client
+DEPS = rabbit
+TEST_DEPS = rabbit amqp_client ct_helper 
+dep_ct_helper = git https://github.com/extend/ct_helper.git master
 
 DEP_PLUGINS = rabbit_common/mk/rabbitmq-plugin.mk
 
@@ -11,13 +13,6 @@ ERLANG_MK_REPO = https://github.com/rabbitmq/erlang.mk.git
 ERLANG_MK_COMMIT = rabbitmq-tmp
 
 include rabbitmq-components.mk
+
+TEST_DEPS := $(filter-out rabbitmq_test,$(TEST_DEPS))
 include erlang.mk
-
-# --------------------------------------------------------------------
-# Testing.
-# --------------------------------------------------------------------
-
-WITH_BROKER_TEST_MAKEVARS := \
-        RABBITMQ_CONFIG_FILE=$(CURDIR)/etc/rabbit-test
-WITH_BROKER_TEST_COMMANDS := \
-	rabbit_exchange_type_delayed_message_test:test()
