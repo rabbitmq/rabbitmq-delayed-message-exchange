@@ -38,14 +38,13 @@
 
 -import(rabbit_delayed_message_utils, [swap_delay_header/1]).
 
--ifdef(use_specs).
-
 -type t_reference() :: reference().
 -type delay() :: non_neg_integer().
 
 
 -spec delay_message(rabbit_types:exchange(),
-                    rabbit_types:delivery()) ->
+                    rabbit_types:delivery(),
+                    delay()) ->
                            nodelay | {ok, t_reference()}.
 
 -spec internal_delay_message(t_reference(),
@@ -53,8 +52,6 @@
                              rabbit_types:delivery(),
                              delay()) ->
                                     nodelay | {ok, t_reference()}.
-
--endif.
 
 -define(SERVER, ?MODULE).
 -define(TABLE_NAME, append_to_atom(?MODULE, node())).
