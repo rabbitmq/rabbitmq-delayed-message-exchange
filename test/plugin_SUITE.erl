@@ -39,7 +39,8 @@ groups() ->
                                 e2e_delay,
                                 delay_order,
                                 delayed_messages_count,
-                                node_restart
+                                node_restart,
+                                string_delay_header
                                ]}
     ].
 
@@ -210,7 +211,6 @@ delay_order(Config) ->
     rabbit_ct_client_helpers:close_channel(Chan),
     ok.
 
-
 delayed_messages_count(Config) ->
     Chan = rabbit_ct_client_helpers:open_channel(Config),
 
@@ -268,9 +268,8 @@ node_restart(Config) ->
 
     ok.
 
-string_delay_header_test() ->
-    {ok, Conn} = amqp_connection:start(#amqp_params_network{}),
-    {ok, Chan} = amqp_connection:open_channel(Conn),
+string_delay_header(Config) ->
+    Chan = rabbit_ct_client_helpers:open_channel(Config),
 
     Ex = <<"e3">>,
     Q = <<"q1">>,
