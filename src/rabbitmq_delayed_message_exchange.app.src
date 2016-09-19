@@ -4,4 +4,4 @@
   {modules, []},
   {mod, {rabbit_delayed_message_app, []}},
   {registered, []},
-  {applications, [kernel, stdlib, rabbit]}]}.
+  {applications, [kernel, stdlib, rabbit_common, rabbit]}]}.
