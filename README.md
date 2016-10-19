@@ -10,7 +10,14 @@ delivered to the respective queues after `x-delay` milliseconds.
 
 ## Supported RabbitMQ Versions
 
-This plugin targets RabbitMQ 3.5.7 and later versions.
+This plugin targets RabbitMQ 3.5.7 and later versions. Note the Erlang requirement
+section below.
+
+
+## Supported Erlang/OTP Versions
+
+This plugin targets Erlang/OTP `18.0` and later versions (even if the RabbitMQ
+version used can run on an older Erlang release).
 
 ## Installing ##
 
