@@ -10,23 +10,42 @@ delivered to the respective queues after `x-delay` milliseconds.
 
 ## Supported RabbitMQ Versions
 
-This plugin targets RabbitMQ 3.5.7 and later versions. Note the Erlang requirement
-section below.
-
+This plugin targets RabbitMQ 3.5.8 and later versions. The most recent
+release is recommended. Note the Erlang requirement section below.
 
 ## Supported Erlang/OTP Versions
 
 This plugin targets Erlang/OTP `18.0` and later versions (even if the RabbitMQ
-version used can run on an older Erlang release).
+version used can run on an older Erlang release). The most recent
+release is recommended.
 
-## Installing ##
+## Project Maturity
 
-Install the corresponding .ez files from our
-[Community Plugins page](http://www.rabbitmq.com/community-plugins.html).
+This plugin is considered to be **experimental yet NOT unstable or unsuitable for production use**.
+It had a few issues and one fundamental problem fixed in its ~ 18 months of
+existence. It is known to work reasonably well for some users.
+It also has known limitations (see a section below),
+including those related to the number of delayed messages.
+
+This plugin is not commercially supported by Pivotal at the moment but
+it doesn't mean that it will be abandoned or team RabbitMQ is not interested
+in improving it further. It is not, however, a high priority for our small team.
+
+So, give it a try with your workload and decide for yourself.
+
+
+## Installation
+
+### Binary Builds
+
+Binary builds are available from the
+[RabbitMQ Community Plugins page](http://www.rabbitmq.com/community-plugins.html).
+
+### Enabling the Plugin
 
 Then run the following command:
 
-```bash
+``` bash
 rabbitmq-plugins enable rabbitmq_delayed_message_exchange
 ```
 
@@ -116,6 +135,10 @@ at the future publishing point in time
 
  * there is at least one queue we can route to
  * the original connection is still around to send a `basic.return` to
+ 
+Current design of this plugin doesn't really fit scenarios
+with a high number of delayed messages (e.g. 100s of thousands or millions).
+See #72 for details.
 
 ## Disabling the Plugin ##
 
@@ -123,10 +146,6 @@ You can disable this plugin by calling `rabbitmq-plugins disable
 rabbitmq_delayed_message_exchange` but note that **ALL DELAYED MESSAGES THAT
 HAVEN'T BEEN DELIVERED WILL BE LOST**.
 
-## Plugin Status ##
-
-At the moment the plugin is **experimental** in order to receive
-feedback from the community.
 
 ## LICENSE ##
 
