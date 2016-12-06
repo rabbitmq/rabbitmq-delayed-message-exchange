@@ -1,4 +1,6 @@
 PROJECT = rabbitmq_delayed_message_exchange
+PROJECT_DESCRIPTION = RabbitMQ Delayed Message Exchange
+PROJECT_MOD = rabbit_delayed_message_app
 
 DEPS = rabbit_common rabbit
 TEST_DEPS = ct_helper rabbitmq_ct_helpers rabbitmq_ct_client_helpers amqp_client
