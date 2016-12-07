@@ -1,4 +1,10 @@
 PROJECT = rabbitmq_delayed_message_exchange
+PROJECT_DESCRIPTION = RabbitMQ Delayed Message Exchange
+PROJECT_MOD = rabbit_delayed_message_app
+
+define PROJECT_APP_EXTRA_KEYS
+	{broker_version_requirements, ["3.5.7", "3.6.0", "3.7.0"]}
+endef
 
 DEPS = rabbit_common rabbit
 TEST_DEPS = ct_helper rabbitmq_ct_helpers rabbitmq_ct_client_helpers amqp_client
