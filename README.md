@@ -130,6 +130,10 @@ to delay messages, then use the actual exchange.
 
 ## Limitations
 
+This plugin was created with disk nodes in mind. RAM nodes are currently
+unsupported and adding support for them is not a priority (if you aren't sure
+what RAM nodes are and whether you need to use them, you almost certainly don't).
+
 Mandatory flag is not supported by this exchange: we cannot be sure that
 at the future publishing point in time
 
