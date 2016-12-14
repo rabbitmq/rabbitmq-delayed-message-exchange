@@ -21,7 +21,7 @@ release is recommended.
 
 ## Project Maturity
 
-This plugin is considered to be **experimental yet stable and suitable for production use**.
+This plugin is considered to be **experimental yet fairly stable and reasonably suitable for production use**.
 It had a few issues and one fundamental problem fixed in its ~ 18 months of
 existence. It is known to work reasonably well for some users.
 It also has known limitations (see a section below),
