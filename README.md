@@ -19,6 +19,9 @@ This plugin targets Erlang/OTP `18.0` and later versions (even if the RabbitMQ
 version used can run on an older Erlang release). The most recent
 release is recommended.
 
+Note that **this disqualifies standalone Mac RabbitMQ 3.6.x packages** and packages
+installed via Homebrew (that provision it), since it bundles Erlang/OTP 17.5.
+
 ## Project Maturity
 
 This plugin is considered to be **experimental yet fairly stable and reasonably suitable for production use**.
