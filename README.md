@@ -24,15 +24,17 @@ installed via Homebrew (that provision it), since it bundles Erlang/OTP 17.5.
 
 ## Project Maturity
 
-This plugin is considered to be **experimental yet fairly stable and reasonably suitable for production use**.
+This plugin is considered to be **experimental yet fairly stable and potential suitable for production use
+as long as the user is aware of its limitations**.
+
 It had a few issues and one fundamental problem fixed in its ~ 18 months of
 existence. It is known to work reasonably well for some users.
-It also has known limitations (see a section below),
-including those related to the number of delayed messages.
+It also has **known limitations** (see a section below),
+including those related to the replication of delayed and messages and the number of delayed messages.
 
 This plugin is not commercially supported by Pivotal at the moment but
 it doesn't mean that it will be abandoned or team RabbitMQ is not interested
-in improving it further. It is not, however, a high priority for our small team.
+in improving it in the future. It is not, however, a high priority for our small team.
 
 So, give it a try with your workload and decide for yourself.
 
@@ -131,14 +133,27 @@ _direct_ or _fanout_ exchange (or any other exchange for that matter),
 _it will be slower_ than using the actual exchange. If you don't need
 to delay messages, then use the actual exchange.
 
+
 ## Limitations
+
+Delayed messages are stored in a Mnesia table (also see Limitations below)
+with a single disk replica on the current node. They will survive a node
+restart. While timer(s) that triggered scheduled delivery are not persisted,
+it will be re-initialised during plugin activation on node start.
+Obviously, only having one copy of a scheduled message in a cluster means
+that losing that node or disabling the plugin on it will lose the
+messages residing on that node.
 
 This plugin was created with disk nodes in mind. RAM nodes are currently
 unsupported and adding support for them is not a priority (if you aren't sure
 what RAM nodes are and whether you need to use them, you almost certainly don't).
 
-Mandatory flag is not supported by this exchange: we cannot be sure that
-at the future publishing point in time
+The plugin only performs one attempt at publishing each message but since publishing
+is local, in practice the only issue that may prevent delivery is the lack of queues
+(or bindings) to route to. 
+
+Closely related to the above, the mandatory flag is not supported by this exchange:
+we cannot be sure that at the future publishing point in time
 
  * there is at least one queue we can route to
  * the original connection is still around to send a `basic.return` to
