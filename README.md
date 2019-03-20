@@ -44,7 +44,7 @@ So, give it a try with your workload and decide for yourself.
 ### Binary Builds
 
 Binary builds are available from the
-[RabbitMQ Community Plugins page](http://www.rabbitmq.com/community-plugins.html).
+[RabbitMQ Community Plugins page](https://www.rabbitmq.com/community-plugins.html).
 
 ### Enabling the Plugin
 
