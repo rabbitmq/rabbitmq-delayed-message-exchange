@@ -1,7 +1,7 @@
 %%  The contents of this file are subject to the Mozilla Public License
 %%  Version 2.0 (the "License"); you may not use this file except in
 %%  compliance with the License. You may obtain a copy of the License
-%%  at http://www.mozilla.org/MPL/
+%%  at https://www.mozilla.org/MPL/
 %%
 %%  Software distributed under the License is distributed on an "AS IS"
 %%  basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
@@ -17,9 +17,9 @@
 %% NOTE that this module uses os:timestamp/0 but in the future Erlang
 %% will have a new time API.
 %% See:
-%% http://www.erlang.org/documentation/doc-7.0-rc1/erts-7.0/doc/html/erlang.html#now-0
+%% https://www.erlang.org/documentation/doc-7.0-rc1/erts-7.0/doc/html/erlang.html#now-0
 %% and
-%% http://www.erlang.org/documentation/doc-7.0-rc1/erts-7.0/doc/html/time_correction.html
+%% https://www.erlang.org/documentation/doc-7.0-rc1/erts-7.0/doc/html/time_correction.html
 
 -module(rabbit_delayed_message).
 
