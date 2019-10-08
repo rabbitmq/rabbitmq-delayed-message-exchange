@@ -253,6 +253,7 @@ node_restart(Config) ->
 
     publish_messages(Chan, Ex, Msgs),
 
+    timer:sleep(lists:max(Msgs) + 3000),
     rabbit_ct_broker_helpers:restart_node(Config, 0),
 
     Chan2 =  rabbit_ct_client_helpers:open_channel(Config),
@@ -370,6 +371,7 @@ make_durable_exchange(Ex, Type) ->
 
 make_msg(HeaderType, V) ->
     #amqp_msg{props = #'P_basic'{
+                         delivery_mode = 2,
                          headers = make_h(HeaderType, V)},
               payload = term_to_binary(V)}.
 
