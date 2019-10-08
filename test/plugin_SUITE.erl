@@ -39,7 +39,8 @@ groups() ->
                                 e2e_delay,
                                 delay_order,
                                 delayed_messages_count,
-                                node_restart,
+                                node_restart_before_delay_expires,
+                                node_restart_after_delay_expires,
                                 string_delay_header
                                ]}
     ].
@@ -240,7 +241,37 @@ delayed_messages_count(Config) ->
     rabbit_ct_client_helpers:close_channel(Chan),
     ok.
 
-node_restart(Config) ->
+node_restart_before_delay_expires(Config) ->
+    Chan = rabbit_ct_client_helpers:open_channel(Config),
+
+    Ex = make_exchange_name(Config, "1"),
+    Q = make_queue_name(Config, "1"),
+
+    setup_fabric(Chan, make_durable_exchange(Ex, <<"direct">>),
+                 make_durable_queue(Q)),
+
+    %% Here, we suppose the node will be restarted before all messages
+    %% are actually queued.
+    Msgs = [5000, 10000, 3000, 2000, 15000, 1000, 4000],
+
+    publish_messages(Chan, Ex, Msgs),
+
+    rabbit_ct_broker_helpers:restart_node(Config, 0),
+
+    Chan2 =  rabbit_ct_client_helpers:open_channel(Config),
+
+    {ok, Result} = consume(Chan2, Q, Msgs),
+    Sorted = lists:sort(Msgs),
+    ?assertEqual(Sorted, Result),
+
+    amqp_channel:call(Chan2, #'exchange.delete' { exchange = Ex }),
+    amqp_channel:call(Chan2, #'queue.delete' { queue = Q }),
+
+    rabbit_ct_client_helpers:close_channel(Chan2),
+
+    ok.
+
+node_restart_after_delay_expires(Config) ->
     Chan = rabbit_ct_client_helpers:open_channel(Config),
 
     Ex = make_exchange_name(Config, "1"),
