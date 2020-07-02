@@ -160,7 +160,7 @@ we cannot be sure that at the future publishing point in time
  
 Current design of this plugin doesn't really fit scenarios
 with a high number of delayed messages (e.g. 100s of thousands or millions).
-See #72 for details.
+See [#72](https://github.com/rabbitmq/rabbitmq-delayed-message-exchange/issues/72) for details.
 
 ## Disabling the Plugin ##
 
