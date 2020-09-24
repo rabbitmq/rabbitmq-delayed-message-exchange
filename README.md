@@ -10,17 +10,12 @@ delivered to the respective queues after `x-delay` milliseconds.
 
 ## Supported RabbitMQ Versions
 
-This plugin targets RabbitMQ 3.5.8 and later versions. The most recent
-release is recommended. Note the Erlang requirement section below.
+The most recent release of this plugin targets RabbitMQ 3.8.x.
+Earlier series are [out of support](https://www.rabbitmq.com/versions.html).
 
 ## Supported Erlang/OTP Versions
 
-This plugin targets Erlang/OTP `18.0` and later versions (even if the RabbitMQ
-version used can run on an older Erlang release). The most recent
-release is recommended.
-
-Note that **this disqualifies standalone Mac RabbitMQ 3.6.x packages** and packages
-installed via Homebrew (that provision it), since it bundles Erlang/OTP 17.5.
+This plugin requires Erlang 22 or later versions, same as RabbitMQ 3.8.x.
 
 ## Project Maturity
 
@@ -43,8 +38,7 @@ So, give it a try with your workload and decide for yourself.
 
 ### Binary Builds
 
-Binary builds are available from the
-[RabbitMQ Community Plugins page](https://www.rabbitmq.com/community-plugins.html).
+Binary builds are available [on GitHub](https://github.com/rabbitmq/rabbitmq-delayed-message-exchange/releases).
 
 ### Enabling the Plugin
 
