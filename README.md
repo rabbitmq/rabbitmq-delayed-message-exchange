@@ -15,7 +15,7 @@ Earlier series are [out of support](https://www.rabbitmq.com/versions.html).
 
 ## Supported Erlang/OTP Versions
 
-This plugin requires Erlang 22 or later versions, same as RabbitMQ 3.8.x.
+This plugin requires Erlang 22 or later versions, [same as RabbitMQ 3.8.x](https://www.rabbitmq.com/which-erlang.html).
 
 ## Project Maturity
 
