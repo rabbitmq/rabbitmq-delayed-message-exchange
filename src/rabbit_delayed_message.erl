@@ -90,7 +90,7 @@ setup_mnesia() ->
                                              record_info(fields, delay_index)},
                                             {type, ordered_set},
                                             {disc_copies, [node()]}]),
-    mnesia:wait_for_tables([?TABLE_NAME, ?INDEX_TABLE_NAME], 30000).
+    rabbit_table:wait([?TABLE_NAME, ?INDEX_TABLE_NAME]).
 
 disable_plugin() ->
     mnesia:delete_table(?INDEX_TABLE_NAME),
