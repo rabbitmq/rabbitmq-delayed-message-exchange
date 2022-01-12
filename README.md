@@ -10,8 +10,8 @@ delivered to the respective queues after `x-delay` milliseconds.
 
 ## Supported RabbitMQ Versions
 
-The most recent release of this plugin targets RabbitMQ 3.8.x.
-Earlier series are [out of support](https://www.rabbitmq.com/versions.html).
+The most recent release of this plugin targets RabbitMQ 3.9.x.
+Series earlier than 3.8.x are [out of support](https://www.rabbitmq.com/versions.html).
 
 ## Supported Erlang/OTP Versions
 
@@ -19,10 +19,10 @@ This plugin [requires Erlang 23.2 or later versions](https://www.rabbitmq.com/wh
 
 ## Project Maturity
 
-This plugin is considered to be **experimental yet fairly stable and potential suitable for production use
+This plugin is considered to be **fairly stable and potential suitable for production use
 as long as the user is aware of its limitations**.
 
-It had a few issues and one fundamental problem fixed in its ~ 18 months of
+It had a few issues and one fundamental problem fixed in its ~ 5 years of
 existence. It is known to work reasonably well for some users.
 It also has **known limitations** (see a section below),
 including those related to the replication of delayed and messages and the number of delayed messages.
