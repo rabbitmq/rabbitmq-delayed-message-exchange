@@ -220,12 +220,25 @@ delayed_messages_count(Config) ->
     Exchanges = rabbit_ct_broker_helpers:rpc(Config, 0,
           rabbit_exchange, info_all, [<<"/">>]),
 
-    [Exchange] = lists:filter(
+    FilterEx =
         fun(X) ->
-            {resource, <<"/">>, exchange, Ex} == proplists:get_value(name, X)
+                {resource, <<"/">>, exchange, Ex} == proplists:get_value(name, X)
         end,
-        Exchanges),
+
+    [Exchange] = lists:filter(FilterEx, Exchanges),
     {messages_delayed, 6} = proplists:lookup(messages_delayed, Exchange),
+
+    %% Set a policy for the exchange
+    P = make_policy_name(Config, "1"),
+    rabbit_ct_broker_helpers:set_policy(
+      Config, 0, P, <<"^", Ex/binary>>, <<"exchanges">>, [{<<"alternate-exchange">>,<<"altex">>}]),
+
+    %% Same message count returned for modified exchange
+    Exchanges2 = rabbit_ct_broker_helpers:rpc(Config, 0,
+          rabbit_exchange, info_all, [<<"/">>]),
+
+    [Exchange2] = lists:filter(FilterEx, Exchanges2),
+    {messages_delayed, 6} = proplists:lookup(messages_delayed, Exchange2),
 
     consume(Chan, Q, Msgs),
 
@@ -418,3 +431,7 @@ make_exchange_name(Config, Suffix) ->
 make_queue_name(Config, Suffix) ->
     B = rabbit_ct_helpers:get_config(Config, test_resource_name),
     erlang:list_to_binary("q-" ++ B ++ "-" ++ Suffix).
+
+make_policy_name(Config, Suffix) ->
+    B = rabbit_ct_helpers:get_config(Config, test_resource_name),
+    erlang:list_to_binary("p-" ++ B ++ "-" ++ Suffix).
