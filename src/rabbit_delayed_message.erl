@@ -98,7 +98,8 @@ disable_plugin() ->
     ok.
 
 messages_delayed(Exchange) ->
-    MatchHead = #delay_entry{delay_key = make_key('_', Exchange),
+    ExchangeName = Exchange#exchange.name,
+    MatchHead = #delay_entry{delay_key = make_key('_', #exchange{name = ExchangeName, _ = '_'}),
                              delivery  = '_', ref       = '_'},
     Delays = mnesia:dirty_select(?TABLE_NAME, [{MatchHead, [], ['$_']}]),
     length(Delays).
