@@ -229,9 +229,9 @@ delayed_messages_count(Config) ->
     {messages_delayed, 6} = proplists:lookup(messages_delayed, Exchange),
 
     %% Set a policy for the exchange
-    P = make_policy_name(Config, "1"),
+    PolicyName = make_policy_name(Config, "1"),
     rabbit_ct_broker_helpers:set_policy(
-      Config, 0, P, <<"^", Ex/binary>>, <<"exchanges">>, [{<<"alternate-exchange">>,<<"altex">>}]),
+      Config, 0, PolicyName, <<"^", Ex/binary>>, <<"exchanges">>, [{<<"alternate-exchange">>, <<"altex">>}]),
 
     %% Same message count returned for modified exchange
     Exchanges2 = rabbit_ct_broker_helpers:rpc(Config, 0,
@@ -242,6 +242,7 @@ delayed_messages_count(Config) ->
 
     consume(Chan, Q, Msgs),
 
+    rabbit_ct_broker_helpers:clear_policy(Config, 0, PolicyName),
     rabbit_ct_client_helpers:close_channel(Chan),
     ok.
 
