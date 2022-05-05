@@ -3,7 +3,7 @@ PROJECT_DESCRIPTION = RabbitMQ Delayed Message Exchange
 PROJECT_MOD = rabbit_delayed_message_app
 
 define PROJECT_APP_EXTRA_KEYS
-	{broker_version_requirements, ["3.8.0", "3.9.0"]}
+	{broker_version_requirements, ["3.9.0", "3.10.0"]}
 endef
 
 DEPS = rabbit_common rabbit
