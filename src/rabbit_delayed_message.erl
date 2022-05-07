@@ -28,6 +28,9 @@
          code_change/3]).
 -export([messages_delayed/1]).
 
+%% For testing, debugging and manual use
+-export([refresh_config/0]).
+
 -import(rabbit_delayed_message_utils, [swap_delay_header/1]).
 
 -type t_reference() :: reference().
@@ -49,7 +52,8 @@
 -define(TABLE_NAME, append_to_atom(?MODULE, node())).
 -define(INDEX_TABLE_NAME, append_to_atom(?TABLE_NAME, "_index")).
 
--record(state, {timer}).
+-record(state, {timer,
+                stats_state}).
 
 -record(delay_key,
         { timestamp, %% timestamp delay
@@ -104,6 +108,9 @@ messages_delayed(Exchange) ->
     Delays = mnesia:dirty_select(?TABLE_NAME, [{MatchHead, [], ['$_']}]),
     length(Delays).
 
+refresh_config() ->
+    gen_server:call(?MODULE, refresh_config).
+
 %%--------------------------------------------------------------------
 
 init([]) ->
@@ -120,11 +127,14 @@ handle_call({delay_message, Exchange, Delivery, Delay},
                      State
              end,
     {reply, Reply, State2};
+handle_call(refresh_config, _From, State) ->
+    {reply, ok, refresh_config(State)};
 handle_call(_Req, _From, State) ->
     {reply, unknown_request, State}.
 
 handle_cast(go, State) ->
-    {noreply, State#state{timer = maybe_delay_first()}};
+    State2 = refresh_config(State),
+    {noreply, State2#state{timer = maybe_delay_first()}};
 handle_cast(_C, State) ->
     {noreply, State}.
 
@@ -133,7 +143,7 @@ handle_info({timeout, _TimerRef, {deliver, Key}}, State) ->
         [] ->
             ok;
         Deliveries ->
-            route(Key, Deliveries),
+            route(Key, Deliveries, State),
             mnesia:dirty_delete(?TABLE_NAME, Key),
             mnesia:dirty_delete(?INDEX_TABLE_NAME, Key)
     end,
@@ -160,12 +170,14 @@ maybe_delay_first() ->
             not_set
     end.
 
-route(#delay_key{exchange = Ex}, Deliveries) ->
+route(#delay_key{exchange = Ex}, Deliveries, State) ->
+    ExName = Ex#exchange.name,
     lists:map(fun (#delay_entry{delivery = D}) ->
                       D2 = swap_delay_header(D),
                       Dests = rabbit_exchange:route(Ex, D2),
                       Qs = rabbit_amqqueue:lookup(Dests),
-                      rabbit_amqqueue:deliver(Qs, D2)
+                      rabbit_amqqueue:deliver(Qs, D2),
+                      bump_routed_stats(ExName, Qs, State)
               end, Deliveries).
 
 internal_delay_message(CurrTimer, Exchange, Delivery, Delay) ->
@@ -260,3 +272,45 @@ recover_exchange_and_bindings(#exchange{name = XName} = X) ->
                               "recovered bindings for ~s",
                              [rabbit_misc:rs(XName)])
     end).
+
+%% These metrics are normally bumped from a channel process via which
+%% the publish actually happened. In the special case of delayed
+%% message delivery, the singleton delayed_message gen_server does
+%% this.
+%%
+%% Difference from delivering from a channel:
+%%
+%% The channel process keeps track of the state and monitors each
+%% queue it routed to. When the channel is notified of a queue DOWN,
+%% it marks all core metrics for that channel + queue as deleted.
+%% Monitoring all queues would be overkill for the delayed message
+%% gen_server, so this delete marking does not happen in this
+%% case. Still `rabbit_core_metrics_gc' will periodically scan all the
+%% core metrics and eventually delete entries for non-existing queues
+%% so there won't be any metrics leak. `rabbit_core_metrics_gc' will
+%% also delete the entries when this process is not alive ie when the
+%% plugin is disabled.
+bump_routed_stats(ExName, Qs, State) ->
+    rabbit_global_counters:messages_routed(amqp091, length(Qs)),
+    case rabbit_event:stats_level(State, #state.stats_state) of
+        fine ->
+            [begin
+                 QName = amqqueue:get_name(Q),
+                 %% Channel PID is just an identifier in the metrics
+                 %% DB. However core metrics GC will delete entries
+                 %% with a not-alive PID, and by the time the delayed
+                 %% message gets delivered the original channel
+                 %% process might be long gone, hence we need a live
+                 %% PID in the key.
+                 FakeChannelId = self(),
+                 Key = {FakeChannelId, {QName, ExName}},
+                 rabbit_core_metrics:channel_stats(queue_exchange_stats, publish, Key, 1)
+             end
+             || Q <- Qs],
+            ok;
+        _ ->
+            ok
+    end.
+
+refresh_config(State) ->
+    rabbit_event:init_stats_timer(State, #state.stats_state).
