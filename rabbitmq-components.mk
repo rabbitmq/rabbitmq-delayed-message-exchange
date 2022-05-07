@@ -54,8 +54,8 @@ dep_rabbitmq_boot_steps_visualiser    = git_rmq           rabbitmq-boot-steps-vi
 dep_rabbitmq_cli                      = git_rmq-subfolder rabbitmq-cli $(current_rmq_ref) $(base_rmq_ref) master
 dep_rabbitmq_codegen                  = git_rmq-subfolder rabbitmq-codegen $(current_rmq_ref) $(base_rmq_ref) master
 dep_rabbitmq_consistent_hash_exchange = git_rmq-subfolder rabbitmq-consistent-hash-exchange $(current_rmq_ref) $(base_rmq_ref) master
-dep_rabbitmq_ct_client_helpers        = git_rmq           rabbitmq-ct-client-helpers $(current_rmq_ref) $(base_rmq_ref) master
-dep_rabbitmq_ct_helpers               = git_rmq           rabbitmq-ct-helpers $(current_rmq_ref) $(base_rmq_ref) master
+dep_rabbitmq_ct_client_helpers        = git_rmq-subfolder rabbitmq-ct-client-helpers $(current_rmq_ref) $(base_rmq_ref) master
+dep_rabbitmq_ct_helpers               = git_rmq-subfolder rabbitmq-ct-helpers $(current_rmq_ref) $(base_rmq_ref) master
 dep_rabbitmq_delayed_message_exchange = git_rmq           rabbitmq-delayed-message-exchange $(current_rmq_ref) $(base_rmq_ref) master
 dep_rabbitmq_dotnet_client            = git_rmq           rabbitmq-dotnet-client $(current_rmq_ref) $(base_rmq_ref) master
 dep_rabbitmq_event_exchange           = git_rmq-subfolder rabbitmq-event-exchange $(current_rmq_ref) $(base_rmq_ref) master
@@ -89,8 +89,8 @@ dep_rabbitmq_shovel                   = git_rmq-subfolder rabbitmq-shovel $(curr
 dep_rabbitmq_shovel_management        = git_rmq-subfolder rabbitmq-shovel-management $(current_rmq_ref) $(base_rmq_ref) master
 dep_rabbitmq_stomp                    = git_rmq-subfolder rabbitmq-stomp $(current_rmq_ref) $(base_rmq_ref) master
 dep_rabbitmq_stream                   = git_rmq-subfolder rabbitmq-stream $(current_rmq_ref) $(base_rmq_ref) master
+dep_rabbitmq_stream_common            = git_rmq-subfolder rabbitmq-stream-common $(current_rmq_ref) $(base_rmq_ref) master
 dep_rabbitmq_stream_management        = git_rmq-subfolder rabbitmq-stream-management $(current_rmq_ref) $(base_rmq_ref) master
-dep_rabbitmq_stream_prometheus        = git_rmq-subfolder rabbitmq-stream-prometheus $(current_rmq_ref) $(base_rmq_ref) master
 dep_rabbitmq_toke                     = git_rmq           rabbitmq-toke $(current_rmq_ref) $(base_rmq_ref) master
 dep_rabbitmq_top                      = git_rmq-subfolder rabbitmq-top $(current_rmq_ref) $(base_rmq_ref) master
 dep_rabbitmq_tracing                  = git_rmq-subfolder rabbitmq-tracing $(current_rmq_ref) $(base_rmq_ref) master
@@ -113,13 +113,14 @@ dep_toke                              = git_rmq           toke $(current_rmq_ref
 dep_accept = hex 0.3.5
 dep_cowboy = hex 2.8.0
 dep_cowlib = hex 2.9.1
-dep_jsx = hex 2.11.0
+dep_jsx = hex 3.1.0
 dep_looking_glass = git https://github.com/rabbitmq/looking_glass master
-dep_prometheus = git https://github.com/deadtrickster/prometheus.erl.git master
-dep_ra = git https://github.com/rabbitmq/ra.git v1.x
-dep_ranch = hex 2.0.0
-dep_recon = hex 2.5.1
-dep_observer_cli = hex 1.6.1
+dep_prometheus = hex 4.8.2
+dep_ra = hex 2.0.9
+dep_ranch = hex 2.1.0
+dep_recon = hex 2.5.2
+dep_redbug = hex 2.0.7
+dep_observer_cli = hex 1.7.3
 dep_stdout_formatter = hex 0.2.4
 dep_sysmon_handler = hex 1.3.0
 
@@ -176,8 +177,8 @@ RABBITMQ_COMPONENTS = amqp_client \
 		      rabbitmq_shovel_management \
 		      rabbitmq_stomp \
 		      rabbitmq_stream \
+		      rabbitmq_stream_common \
 		      rabbitmq_stream_management \
-		      rabbitmq_stream_prometheus \
 		      rabbitmq_toke \
 		      rabbitmq_top \
 		      rabbitmq_tracing \
