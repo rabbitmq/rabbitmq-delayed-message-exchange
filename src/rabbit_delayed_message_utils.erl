@@ -16,6 +16,8 @@
 
 -define(STRING_ARG_TYPES, [longstr, shortstr]).
 
+-define(FLOAT_ARG_TYPES, [decimal, double, float]).
+
 -import(rabbit_misc, [table_lookup/2, set_table_value/4]).
 
 get_delay(Delivery) ->
@@ -91,7 +93,11 @@ get_headers(#'P_basic'{headers = H}) ->
 try_convert_to_int(Type, Delay) ->
     case lists:member(Type, ?STRING_ARG_TYPES) of
         true  -> {ok, binary_to_integer(Delay)};
-        false -> {error, {unacceptable_type, Type}}
+        false -> 
+            case lists:member(Type, ?FLOAT_ARG_TYPES) of
+                true  -> {ok, trunc(Delay)};
+                false -> {error, {unacceptable_type, Type}}
+            end.
     end.
 
 %% adapted from rabbit_amqqueue.erl
