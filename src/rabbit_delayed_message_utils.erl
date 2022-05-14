@@ -97,7 +97,7 @@ try_convert_to_int(Type, Delay) ->
             case lists:member(Type, ?FLOAT_ARG_TYPES) of
                 true  -> {ok, trunc(Delay)};
                 false -> {error, {unacceptable_type, Type}}
-            end.
+            end
     end.
 
 %% adapted from rabbit_amqqueue.erl
