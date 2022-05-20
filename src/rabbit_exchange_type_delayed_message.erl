@@ -40,11 +40,21 @@ description() ->
     [{name, <<"x-delayed-message">>},
      {description, <<"Delayed Message Exchange.">>}].
 
-route(X, Delivery) ->
+route(X = #exchange{name = Name},
+      Delivery = #delivery{message = #basic_message{routing_keys = RKeys}}) ->
     case delay_message(X, Delivery) of
         nodelay ->
             %% route the message using proxy module
-            ?EXCHANGE(X):route(X, Delivery);
+            case ?EXCHANGE(X) of
+                rabbit_exchange_type_direct ->
+                    %% Exchange type x-delayed-message routes via "direct exchange routing v1"
+                    %% even when feature flag direct_exchange_routing_v2 is enabled because
+                    %% table rabbit_index_route only stores bindings whose source exchange
+                    %% is of type direct exchange.
+                    rabbit_router:match_routing_key(Name, RKeys);
+                Mod ->
+                    Mod:route(X, Delivery)
+            end;
         _ ->
             []
     end.

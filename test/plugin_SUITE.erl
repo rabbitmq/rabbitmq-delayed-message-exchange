@@ -150,8 +150,6 @@ e2e_nodelay(Config) ->
     e2e_test0(Config, [0]).
 
 e2e_delay(Config) ->
-    %% message delay will be 0,
-    %% we are testing e2e without delays
     e2e_test0(Config, [500, 100, 300, 200, 100, 400]).
 
 e2e_test0(Config, Msgs) ->
