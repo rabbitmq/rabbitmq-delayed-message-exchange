@@ -7,15 +7,15 @@
 
 -module(plugin_SUITE).
 
--compile(export_all).
+-compile([export_all, nowarn_export_all]).
 
--include_lib("common_test/include/ct.hrl").
 -include_lib("eunit/include/eunit.hrl").
 -include_lib("amqp_client/include/amqp_client.hrl").
 
 all() ->
     [
-      {group, non_parallel_tests}
+      {group, non_parallel_tests},
+      {group, fine_stats}
     ].
 
 groups() ->
@@ -33,7 +33,11 @@ groups() ->
                                 node_restart_before_delay_expires,
                                 node_restart_after_delay_expires,
                                 string_delay_header
-                               ]}
+                               ]},
+     {fine_stats, [], [
+                       e2e_nodelay,
+                       e2e_delay
+                      ]}
     ].
 
 
@@ -55,9 +59,19 @@ end_per_suite(Config) ->
       rabbit_ct_client_helpers:teardown_steps() ++
       rabbit_ct_broker_helpers:teardown_steps()).
 
+init_per_group(fine_stats, Config) ->
+    CollectStatsOrig = get_collect_stats(Config),
+    set_collect_stats(Config, fine),
+    refresh_config(Config),
+    [{collect_statistics, fine}, {collect_statistics_orig, CollectStatsOrig}|Config];
 init_per_group(_, Config) ->
     Config.
 
+end_per_group(fine_stats, Config) ->
+    CollectStatsOrig = rabbit_ct_helpers:get_config(Config, collect_statistics_orig),
+    set_collect_stats(Config, CollectStatsOrig),
+    refresh_config(Config),
+    Config;
 end_per_group(_, Config) ->
     Config.
 
@@ -65,6 +79,7 @@ init_per_testcase(Testcase, Config) ->
     TestCaseName = rabbit_ct_helpers:config_to_testcase_name(Config, Testcase),
     BaseName = re:replace(TestCaseName, "/", "-", [global,{return,list}]),
     Config1 = rabbit_ct_helpers:set_config(Config, {test_resource_name, BaseName}),
+    reset_publish_out_stats(Config),
     rabbit_ct_helpers:testcase_started(Config1, Testcase).
 
 end_per_testcase(Testcase, Config) ->
@@ -169,12 +184,21 @@ e2e_test0(Config, Msgs) ->
                                    destination = Ex2
                                   }),
 
+    [] = get_publish_out_stat(Config),
 
     publish_messages(Chan, Ex, Msgs),
 
     {ok, Result} = consume(Chan, Q, Msgs),
     Sorted = lists:sort(Msgs),
     ?assertEqual(Sorted, Result),
+
+    PublishOutCount = length(Msgs),
+    case rabbit_ct_helpers:get_config(Config, collect_statistics, none) of
+        fine ->
+            ?assertMatch([{_, PublishOutCount, _}], get_publish_out_stat(Config));
+        _ ->
+            ?assertMatch([], get_publish_out_stat(Config))
+    end,
 
     amqp_channel:call(Chan, #'exchange.delete' { exchange = Ex }),
     amqp_channel:call(Chan, #'exchange.delete' { exchange = Ex2 }),
@@ -434,3 +458,23 @@ make_queue_name(Config, Suffix) ->
 make_policy_name(Config, Suffix) ->
     B = rabbit_ct_helpers:get_config(Config, test_resource_name),
     erlang:list_to_binary("p-" ++ B ++ "-" ++ Suffix).
+
+get_publish_out_stat(Config) ->
+    rabbit_ct_broker_helpers:rpc(Config, 0, ets, tab2list, [channel_queue_exchange_metrics]).
+
+reset_publish_out_stats(Config) ->
+    rabbit_ct_broker_helpers:rpc(Config, 0, ets, delete_all_objects, [channel_queue_exchange_metrics]).
+
+get_collect_stats(Config) ->
+    rabbit_ct_broker_helpers:rpc(
+      Config, 0, application, get_env, [rabbit, collect_statistics, undefined]).
+
+set_collect_stats(Config, undefined) ->
+    ok = rabbit_ct_broker_helpers:rpc(
+           Config, 0, application, unset_env, [rabbit, collect_statistics]);
+set_collect_stats(Config, CollectStats) ->
+    ok = rabbit_ct_broker_helpers:rpc(
+           Config, 0, application, set_env, [rabbit, collect_statistics, CollectStats]).
+
+refresh_config(Config) ->
+    ok = rabbit_ct_broker_helpers:rpc(Config, 0, rabbit_delayed_message, refresh_config, []).
