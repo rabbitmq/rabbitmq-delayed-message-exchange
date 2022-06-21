@@ -36,9 +36,18 @@ So, give it a try with your workload and decide for yourself.
 
 ## Installation
 
-### Binary Builds
+### Download a Binary Build
 
-Binary builds are available [on GitHub](https://github.com/rabbitmq/rabbitmq-delayed-message-exchange/releases).
+Binary builds are distributed [via GitHub releases](https://github.com/rabbitmq/rabbitmq-delayed-message-exchange/releases).
+
+As with all 3rd party plugins, the `.ez` file must be placed into a [node's plugins directory](https://rabbitmq.com/plugins.html#plugin-directories)
+and be readable by the effective user of the RabbitMQ process.
+
+To find out what the plugins directory is, use `rabbitmq-plugins directories`
+
+``` bash
+rabbitmq-plugins directories -s
+```
 
 ### Enabling the Plugin
 
