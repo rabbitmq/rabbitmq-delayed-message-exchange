@@ -50,7 +50,6 @@
                              delay()) ->
                                     nodelay | {ok, t_reference()}.
 
--define(SERVER, ?MODULE).
 -define(TABLE_NAME, append_to_atom(?MODULE, node())).
 -define(INDEX_TABLE_NAME, append_to_atom(?TABLE_NAME, "_index")).
 
