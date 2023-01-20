@@ -29,7 +29,9 @@
 -export([messages_delayed/1]).
 
 %% For testing, debugging and manual use
--export([refresh_config/0]).
+-export([refresh_config/0,
+         table_name/0,
+         index_table_name/0]).
 
 -import(rabbit_delayed_message_utils, [swap_delay_header/1]).
 
@@ -141,7 +143,7 @@ handle_cast(_C, State) ->
 handle_info({timeout, _TimerRef, {deliver, Key}}, State) ->
     case mnesia:dirty_read(?TABLE_NAME, Key) of
         [] ->
-            ok;
+            mnesia:dirty_delete(?INDEX_TABLE_NAME, Key);
         Deliveries ->
             route(Key, Deliveries, State),
             mnesia:dirty_delete(?TABLE_NAME, Key),
@@ -162,7 +164,7 @@ maybe_delay_first() ->
     case mnesia:dirty_first(?INDEX_TABLE_NAME) of
         %% destructuring to prevent matching '$end_of_table'
         #delay_key{timestamp = FirstTS} = Key2 ->
-            %% there are messages that expired and need to be delivered
+            %% there are messages that will expire and need to be delivered
             Now = erlang:system_time(milli_seconds),
             start_timer(FirstTS - Now, Key2);
         _ ->
@@ -314,3 +316,9 @@ bump_routed_stats(ExName, Qs, State) ->
 
 refresh_config(State) ->
     rabbit_event:init_stats_timer(State, #state.stats_state).
+
+table_name() ->
+    ?TABLE_NAME.
+
+index_table_name() ->
+    ?INDEX_TABLE_NAME.

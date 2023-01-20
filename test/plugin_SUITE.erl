@@ -32,6 +32,7 @@ groups() ->
                                 delayed_messages_count,
                                 node_restart_before_delay_expires,
                                 node_restart_after_delay_expires,
+                                no_message_for_index,
                                 string_delay_header
                                ]},
      {fine_stats, [], [
@@ -327,6 +328,37 @@ node_restart_after_delay_expires(Config) ->
 
     ok.
 
+no_message_for_index(Config) ->
+    Chan = rabbit_ct_client_helpers:open_channel(Config),
+
+    Ex = make_exchange_name(Config, "1"),
+    Q = make_queue_name(Config, "1"),
+
+    setup_fabric(Chan, make_durable_exchange(Ex, <<"direct">>),
+                 make_durable_queue(Q)),
+
+    Msgs = [1000, 2000],
+
+    publish_messages(Chan, Ex, Msgs),
+
+    %% delete the first message, but keep it in the index table
+    make_table_corrupted(Config),
+
+    timer:sleep(2000),
+
+    %% the index key with no messages should be ignored/deleted
+    %% and the following messages are successfully delivered
+    Msgs2 = tl(Msgs),
+    {ok, Result} = consume(Chan, Q, Msgs2),
+    ?assertEqual(Msgs2, Result),
+
+    amqp_channel:call(Chan, #'exchange.delete' { exchange = Ex }),
+    amqp_channel:call(Chan, #'queue.delete' { queue = Q }),
+
+    rabbit_ct_client_helpers:close_channel(Chan),
+
+    ok.
+
 string_delay_header(Config) ->
     Chan = rabbit_ct_client_helpers:open_channel(Config),
 
@@ -478,3 +510,10 @@ set_collect_stats(Config, CollectStats) ->
 
 refresh_config(Config) ->
     ok = rabbit_ct_broker_helpers:rpc(Config, 0, rabbit_delayed_message, refresh_config, []).
+
+make_table_corrupted(Config) ->
+    Table = rabbit_ct_broker_helpers:rpc(Config, 0, rabbit_delayed_message, table_name, []),
+    IndexTable = rabbit_ct_broker_helpers:rpc(Config, 0, rabbit_delayed_message, index_table_name, []),
+
+    FirstKey = rabbit_ct_broker_helpers:rpc(Config, 0, mnesia, dirty_first, [IndexTable]),
+    rabbit_ct_broker_helpers:rpc(Config, 0, mnesia, dirty_delete, [Table, FirstKey]).
