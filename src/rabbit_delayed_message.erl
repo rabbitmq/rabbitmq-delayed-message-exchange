@@ -50,7 +50,6 @@
                              delay()) ->
                                     nodelay | {ok, t_reference()}.
 
--define(SERVER, ?MODULE).
 -define(TABLE_NAME, append_to_atom(?MODULE, node())).
 -define(INDEX_TABLE_NAME, append_to_atom(?TABLE_NAME, "_index")).
 
@@ -107,7 +106,7 @@ messages_delayed(Exchange) ->
     ExchangeName = Exchange#exchange.name,
     MatchHead = #delay_entry{delay_key = make_key('_', #exchange{name = ExchangeName, _ = '_'}),
                              delivery  = '_', ref       = '_'},
-    Delays = mnesia:dirty_select(?TABLE_NAME, [{MatchHead, [], ['$_']}]),
+    Delays = mnesia:dirty_select(?TABLE_NAME, [{MatchHead, [], [true]}]),
     length(Delays).
 
 refresh_config() ->
