@@ -7,8 +7,8 @@
 
 -module(rabbit_delayed_message_utils).
 
--include_lib("rabbit_common/include/rabbit.hrl").
 -include_lib("rabbit_common/include/rabbit_framing.hrl").
+-include_lib("rabbit_common/include/rabbit.hrl").
 
 -export([get_delay/1, swap_delay_header/1]).
 
