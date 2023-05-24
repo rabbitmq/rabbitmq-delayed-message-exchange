@@ -8,10 +8,19 @@ then publish messages with the custom header `x-delay` expressing in
 milliseconds a delay time for the message. The message will be
 delivered to the respective queues after `x-delay` milliseconds.
 
+## Intended Use Cases
+
+This plugin was designed for delaying message publishing for a number of seconds, minutes, or hours.
+A day or two most.
+
+It is **not a longer term scheduling solution**. If you need to delay publishing by days, weeks, months, or years,
+consider using a data store suitable for long-term storage, and an external scheduling tool
+of some kind.
+
+
 ## Supported RabbitMQ Versions
 
-The most recent release of this plugin targets RabbitMQ 3.10.x.
-Series earlier than 3.9.x are [out of support](https://www.rabbitmq.com/versions.html).
+The most recent release of this plugin targets RabbitMQ 3.11.x.
 
 ## Supported Erlang/OTP Versions
 
@@ -19,15 +28,10 @@ This plugin [requires Erlang 23.2 or later versions](https://www.rabbitmq.com/wh
 
 ## Project Maturity
 
-This plugin is considered to be **fairly stable and potential suitable for production use
-as long as the user is aware of its limitations**.
+The current design of this plugin is **mature and potential suitable for production use
+as long as the user is aware of its limitations and the intended use cases**.
 
-It had a few issues and one fundamental problem fixed in its ~ 5 years of
-existence. It is known to work reasonably well for some users.
-It also has **known limitations** (see a section below),
-including those related to the replication of delayed and messages and the number of delayed messages.
-
-This plugin is not commercially supported by Pivotal at the moment but
+This plugin is not commercially supported by VMware at the moment but
 it doesn't mean that it will be abandoned or team RabbitMQ is not interested
 in improving it in the future. It is not, however, a high priority for our small team.
 
