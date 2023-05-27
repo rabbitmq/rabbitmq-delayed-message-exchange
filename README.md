@@ -1,11 +1,20 @@
-# RabbitMQ Delayed Message Plugin #
+# RabbitMQ Delayed Message Plugin
+
+## Consider the Limitations
 
 This plugin adds delayed-messaging (or scheduled-messaging) to
-RabbitMQ. Its current design has plenty of limitation (documented below),
+RabbitMQ. Its current design **has plenty of limitation** (documented below),
 consider using an external scheduler and a data store that fits your needs
 first.
 
-A user can declare an exchange with the type `x-delayed-message` and
+This plugin badly needs a [new design](https://github.com/rabbitmq/rabbitmq-delayed-message-exchange/issues/229)
+and a reimplementation from the ground up.
+
+If you accept the limitations, please read on.
+
+## The Basics
+
+With this plugin enabled, a user can declare an exchange with the type `x-delayed-message` and
 then publish messages with the custom header `x-delay` expressing in
 milliseconds a delay time for the message. The message will be
 delivered to the respective queues after `x-delay` milliseconds.
@@ -13,7 +22,7 @@ delivered to the respective queues after `x-delay` milliseconds.
 ## Intended Use Cases
 
 This plugin was designed for delaying message publishing for a number of seconds, minutes, or hours.
-A day or two most.
+A day or two at most.
 
 It is **not a longer term scheduling solution**. If you need to delay publishing by days, weeks, months, or years,
 consider using a data store suitable for long-term storage, and an external scheduling tool
