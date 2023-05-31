@@ -27,7 +27,7 @@
 
 -export([description/0, serialise_events/0, route/2]).
 -export([validate/1, validate_binding/2,
-         create/2, delete/3, policy_changed/2,
+         create/2, delete/2, policy_changed/2,
          add_binding/3, remove_bindings/3, assert_args_equivalence/2]).
 -export([info/1, info/2]).
 
@@ -80,16 +80,16 @@ validate(#exchange{arguments = Args} = X) ->
 
 validate_binding(X, B) ->
     ?EXCHANGE(X):validate_binding(X, B).
-create(Tx, X) ->
-    ?EXCHANGE(X):create(Tx, X).
-delete(Tx, X, Bs) ->
-    ?EXCHANGE(X):delete(Tx, X, Bs).
+create(Serial, X) ->
+    ?EXCHANGE(X):create(Serial, X).
+delete(Serial, X) ->
+    ?EXCHANGE(X):delete(Serial, X).
 policy_changed(X1, X2) ->
     ?EXCHANGE(X1):policy_changed(X1, X2).
-add_binding(Tx, X, B) ->
-    ?EXCHANGE(X):add_binding(Tx, X, B).
-remove_bindings(Tx, X, Bs) ->
-    ?EXCHANGE(X):remove_bindings(Tx, X, Bs).
+add_binding(Serial, X, B) ->
+    ?EXCHANGE(X):add_binding(Serial, X, B).
+remove_bindings(Serial, X, Bs) ->
+    ?EXCHANGE(X):remove_bindings(Serial, X, Bs).
 assert_args_equivalence(X, Args) ->
     ?EXCHANGE(X):assert_args_equivalence(X, Args).
 serialise_events() -> false.
