@@ -171,7 +171,7 @@ route(#delay_key{exchange = Ex}, Deliveries, State) ->
     lists:map(fun (#delay_entry{delivery = D}) ->
                       D2 = swap_delay_header(D),
                       Dests = rabbit_exchange:route(Ex, D2),
-                      Qs = rabbit_amqqueue:lookup(Dests),
+                      Qs = rabbit_amqqueue:lookup_many(Dests),
                       rabbit_amqqueue:deliver(Qs, D2),
                       bump_routed_stats(ExName, Qs, State)
               end, Deliveries).
