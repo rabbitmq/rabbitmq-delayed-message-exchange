@@ -31,11 +31,11 @@ of some kind.
 
 ## Supported RabbitMQ Versions
 
-The most recent release of this plugin targets RabbitMQ 3.11.x.
+The most recent release of this plugin targets RabbitMQ 3.12.x.
 
 ## Supported Erlang/OTP Versions
 
-This plugin [requires Erlang 23.2 or later versions](https://www.rabbitmq.com/which-erlang.html), same as RabbitMQ 3.8.16+.
+The latest version of this plugin [requires Erlang 25.0 or later versions](https://www.rabbitmq.com/which-erlang.html), same as RabbitMQ 3.12.x.
 
 ## Project Maturity
 
