@@ -120,13 +120,8 @@ init([]) ->
 handle_call({delay_message, Exchange, Delivery, Delay},
             _From, State = #state{timer = CurrTimer}) ->
     Reply = internal_delay_message(CurrTimer, Exchange, Delivery, Delay),
-    State2 = case Reply of
-                 {ok, NewTimer} ->
-                     State#state{timer = NewTimer};
-                 _ ->
-                     State
-             end,
-    {reply, Reply, State2};
+    {ok, NewTimer} = Reply,
+    {reply, Reply, State#state{timer = NewTimer}};
 handle_call(refresh_config, _From, State) ->
     {reply, ok, refresh_config(State)};
 handle_call(_Req, _From, State) ->
