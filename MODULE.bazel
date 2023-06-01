@@ -1,5 +1,5 @@
 module(
-    name = "rabbitmq_lvc_exchange",
+    name = "rabbitmq_delayed_message_exchange",
     version = "3.11.4",
 )
 
