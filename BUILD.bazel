@@ -1,0 +1,194 @@
+load("@bazel_gazelle//:def.bzl", "gazelle")
+load("@rules_erlang//gazelle:def.bzl", "GAZELLE_ERLANG_RUNTIME_DEPS")
+load("@rules_erlang//gazelle:moduleindex.bzl", "moduleindex")
+load("@rules_erlang//:erlang_bytecode2.bzl", "erlc_opts")
+load("@rules_erlang//:erlang_app.bzl", "erlang_app", "test_erlang_app")
+load("@rules_erlang//:xref2.bzl", "xref")
+load("@rules_erlang//:dialyze.bzl", "dialyze", "plt")
+load("@rules_erlang//:eunit2.bzl", "eunit")
+load("@rules_erlang//:ct.bzl", "assert_suites2")
+load("@rules_erlang//:ez.bzl", "ez")
+load(":app.bzl", "all_beam_files", "all_srcs", "all_test_beam_files", "test_suite_beam_files")
+load(":helpers.bzl", "rabbitmq_integration_suite")
+load("@rabbitmq-server//:rabbitmq_home.bzl", "rabbitmq_home")
+load("@rabbitmq-server//:rabbitmq_run.bzl", "rabbitmq_run", "rabbitmq_run_command")
+load("@rabbitmq-server//:rabbitmqctl.bzl", "rabbitmqctl")
+
+# gazelle:exclude .github
+# gazelle:exclude .elixir_ls
+# gazelle:exclude .erlang.mk
+# gazelle:exclude .vscode
+
+# gazelle:erlang_skip_rules ct_test
+
+# gazelle:erlang_generate_beam_files_macro
+# gazelle:erlang_generate_fewer_bytecode_rules
+
+# gazelle:erlang_resolve amqp_client @rabbitmq-server//deps/amqp_client:erlang_app
+# gazelle:erlang_resolve amqp10_client @rabbitmq-server//deps/amqp10_client:erlang_app
+# gazelle:erlang_resolve rabbit @rabbitmq-server//deps/rabbit:erlang_app
+# gazelle:erlang_resolve rabbit_common @rabbitmq-server//deps/rabbit_common:erlang_app
+# gazelle:erlang_resolve rabbitmq_amqp1_0 @rabbitmq-server//deps/rabbitmq_amqp1_0:erlang_app
+# gazelle:erlang_resolve rabbitmq_cli @rabbitmq-server//deps/rabbitmq_cli:erlang_app
+# gazelle:erlang_resolve rabbitmq_ct_helpers @rabbitmq-server//deps/rabbitmq_ct_helpers:erlang_app
+
+gazelle(
+    name = "gazelle",
+    data = GAZELLE_ERLANG_RUNTIME_DEPS,
+    extra_args = [
+        "--verbose",
+    ],
+    gazelle = "@rules_erlang//gazelle:gazelle_erlang_binary",
+)
+
+moduleindex(
+    name = "moduleindex",
+    testonly = True,
+    apps = [
+        "@rabbitmq-server//deps/rabbit:erlang_app",
+    ],
+    tags = ["manual"],
+)
+
+erlc_opts(
+    name = "erlc_opts",
+    values = select({
+        "@rules_erlang//:debug_build": [
+            "+debug_info",
+        ],
+        "//conditions:default": [
+            "+debug_info",
+            "+deterministic",
+        ],
+    }),
+    visibility = [":__subpackages__"],
+)
+
+erlc_opts(
+    name = "test_erlc_opts",
+    values = select({
+        "@rules_erlang//:debug_build": [
+            "+debug_info",
+            "-DTEST=1",
+        ],
+        "//conditions:default": [
+            "+debug_info",
+            "+deterministic",
+            "-DTEST=1",
+        ],
+    }),
+    visibility = [":__subpackages__"],
+)
+
+plt(
+    name = "base_plt",
+    visibility = [":__subpackages__"],
+)
+
+all_srcs(name = "all_srcs")
+
+all_beam_files(name = "all_beam_files")
+
+all_test_beam_files(name = "all_test_beam_files")
+
+test_suite_beam_files(name = "test_suite_beam_files")
+
+erlang_app(
+    name = "erlang_app",
+    srcs = [":all_srcs"],
+    hdrs = [":public_hdrs"],
+    app_description = "RabbitMQ Delayed Message Exchange",
+    app_module = "rabbit_delayed_message_app",
+    app_name = "rabbitmq_delayed_message_exchange",
+    app_version = module_version(),
+    beam_files = [":beam_files"],
+    license_files = [":license_files"],
+    priv = [":priv"],
+    deps = [
+        "@rabbitmq-server//deps/rabbit:erlang_app",
+        "@rabbitmq-server//deps/rabbit_common:erlang_app",
+    ],
+)
+
+alias(
+    name = "rabbitmq-delayed-message-exchange",
+    actual = ":erlang_app",
+    visibility = ["//visibility:public"],
+)
+
+test_erlang_app(
+    name = "test_erlang_app",
+    srcs = [":all_srcs"],
+    hdrs = [":public_and_private_hdrs"],
+    app_name = "rabbitmq_delayed_message_exchange",
+    beam_files = [":test_beam_files"],
+    license_files = [":license_files"],
+    priv = [":priv"],
+    deps = [
+        "@rabbitmq-server//deps/rabbit:erlang_app",
+        "@rabbitmq-server//deps/rabbit_common:erlang_app",
+    ],
+)
+
+xref(
+    name = "xref",
+    target = ":erlang_app",
+)
+
+plt(
+    name = "deps_plt",
+    apps = [
+        "mnesia",  # keep
+    ],
+    for_target = ":erlang_app",
+    plt = "//:base_plt",
+)
+
+dialyze(
+    name = "dialyze",
+    plt = ":deps_plt",
+    target = ":erlang_app",
+)
+
+eunit(
+    name = "eunit",
+    target = ":test_erlang_app",
+)
+
+rabbitmq_home(
+    name = "broker-home",
+    plugins = [
+        "@rabbitmq-server//deps/rabbit:erlang_app",
+        ":erlang_app",
+    ],
+)
+
+rabbitmq_run(
+    name = "rabbitmq-run",
+    home = ":broker-home",
+)
+
+# `bazel run broker`
+rabbitmq_run_command(
+    name = "broker",
+    rabbitmq_run = ":rabbitmq-run",
+    subcommand = "run-broker",
+)
+
+# `bazel run rabbitmqctl -- export_definitons -`
+rabbitmqctl(
+    name = "rabbitmqctl",
+    home = ":broker-home",
+)
+
+rabbitmq_integration_suite(
+    name = "plugin_SUITE",
+    shard_count = 2,
+)
+
+assert_suites2()
+
+ez(
+    name = "ez",
+    app = ":erlang_app",
+)

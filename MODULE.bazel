@@ -1,0 +1,60 @@
+module(
+    name = "rabbitmq_lvc_exchange",
+    version = "3.11.4",
+)
+
+bazel_dep(
+    name = "gazelle",
+    version = "0.29.0",
+    repo_name = "bazel_gazelle",
+)
+
+bazel_dep(
+    name = "rules_erlang",
+    version = "3.10.6",
+)
+
+erlang_config = use_extension(
+    "@rules_erlang//bzlmod:extensions.bzl",
+    "erlang_config",
+    dev_dependency = True,
+)
+
+use_repo(
+    erlang_config,
+    "erlang_config",
+)
+
+bazel_dep(
+    name = "rabbitmq-server",
+    version = "3.11.17",
+)
+
+archive_override(
+    module_name = "rabbitmq-server",
+    strip_prefix = "rabbitmq-server-3.11.17",
+    urls = [
+        "https://github.com/rabbitmq/rabbitmq-server/archive/refs/tags/v3.11.17.zip",
+    ],
+)
+
+elixir_config = use_extension(
+    "@rabbitmq-server//bazel/bzlmod:extensions.bzl",
+    "elixir_config",
+    dev_dependency = True,
+)
+
+use_repo(
+    elixir_config,
+    "elixir_config",
+)
+
+rbe = use_extension(
+    "@rabbitmq-server//bazel/bzlmod:extensions.bzl",
+    "rbe",
+)
+
+use_repo(
+    rbe,
+    "rbe",
+)

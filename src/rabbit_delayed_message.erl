@@ -84,21 +84,21 @@ delay_message(Exchange, Delivery, Delay) ->
                     infinity).
 
 setup_mnesia() ->
-    mnesia:create_table(?TABLE_NAME, [{record_name, delay_entry},
-                                      {attributes,
-                                       record_info(fields, delay_entry)},
-                                      {type, bag},
-                                      {disc_copies, [node()]}]),
-    mnesia:create_table(?INDEX_TABLE_NAME, [{record_name, delay_index},
-                                            {attributes,
-                                             record_info(fields, delay_index)},
-                                            {type, ordered_set},
-                                            {disc_copies, [node()]}]),
+    _ = mnesia:create_table(?TABLE_NAME, [{record_name, delay_entry},
+                                          {attributes,
+                                           record_info(fields, delay_entry)},
+                                          {type, bag},
+                                          {disc_copies, [node()]}]),
+    _ = mnesia:create_table(?INDEX_TABLE_NAME, [{record_name, delay_index},
+                                                {attributes,
+                                                 record_info(fields, delay_index)},
+                                                {type, ordered_set},
+                                                {disc_copies, [node()]}]),
     rabbit_table:wait([?TABLE_NAME, ?INDEX_TABLE_NAME]).
 
 disable_plugin() ->
-    mnesia:delete_table(?INDEX_TABLE_NAME),
-    mnesia:delete_table(?TABLE_NAME),
+    _ = mnesia:delete_table(?INDEX_TABLE_NAME),
+    _ = mnesia:delete_table(?TABLE_NAME),
     ok.
 
 messages_delayed(Exchange) ->
@@ -114,7 +114,7 @@ refresh_config() ->
 %%--------------------------------------------------------------------
 
 init([]) ->
-    recover(),
+    _ = recover(),
     {ok, #state{timer = not_set}}.
 
 handle_call({delay_message, Exchange, Delivery, Delay},
@@ -143,7 +143,7 @@ handle_info({timeout, _TimerRef, {deliver, Key}}, State) ->
         [] ->
             ok;
         Deliveries ->
-            route(Key, Deliveries, State),
+            _ = route(Key, Deliveries, State),
             mnesia:dirty_delete(?TABLE_NAME, Key),
             mnesia:dirty_delete(?INDEX_TABLE_NAME, Key)
     end,
@@ -199,7 +199,7 @@ internal_delay_message(CurrTimer, Exchange, Delivery, Delay) ->
                     {ok, CurrTimer};
                 CurrMS when Delay < CurrMS ->
                     %% Current timer lasts longer that new message delay
-                    erlang:cancel_timer(CurrTimer),
+                    _ = erlang:cancel_timer(CurrTimer),
                     {ok, start_timer(Delay, make_key(DelayTS, Exchange))};
                 _ ->
                     %% Timer is set to expire sooner than this
@@ -266,8 +266,8 @@ recover_exchange_and_bindings(#exchange{name = XName} = X) ->
     mnesia:transaction(
         fun () ->
             Bindings = rabbit_binding:list_for_source(XName),
-            [rabbit_exchange_type_delayed_message:add_binding(transaction, X, B)
-             || B <- lists:usort(Bindings)],
+            _ = [rabbit_exchange_type_delayed_message:add_binding(transaction, X, B)
+                 || B <- lists:usort(Bindings)],
             rabbit_log:debug("Delayed message exchange: "
                               "recovered bindings for ~s",
                              [rabbit_misc:rs(XName)])

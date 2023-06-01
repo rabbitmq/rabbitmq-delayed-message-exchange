@@ -16,3 +16,8 @@
 /xrefr
 
 rabbitmq_delayed_message_exchange.d
+
+/user.bazelrc
+/bazel-*
+
+/.vscode/

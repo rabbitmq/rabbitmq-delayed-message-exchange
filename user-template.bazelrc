@@ -1,0 +1,9 @@
+# rabbitmqctl wait shells out to 'ps', which is broken in the bazel macOS
+# sandbox (https://github.com/bazelbuild/bazel/issues/7448)
+# adding "--spawn_strategy=local" to the invocation is a workaround
+build --spawn_strategy=local
+
+# don't re-run flakes automatically on the local machine
+build --flaky_test_attempts=1
+
+build:buildbuddy --remote_header=x-buildbuddy-api-key=YOUR_API_KEY
