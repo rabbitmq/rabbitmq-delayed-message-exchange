@@ -27,14 +27,14 @@ use_repo(
 
 bazel_dep(
     name = "rabbitmq-server",
-    version = "3.11.17",
+    version = "3.12.0",
 )
 
 archive_override(
     module_name = "rabbitmq-server",
-    strip_prefix = "rabbitmq-server-3.11.17",
+    strip_prefix = "rabbitmq-server-3.12.x",
     urls = [
-        "https://github.com/rabbitmq/rabbitmq-server/archive/refs/tags/v3.11.17.zip",
+        "https://github.com/rabbitmq/rabbitmq-server/archive/refs/heads/v3.12.x.zip",
     ],
 )
 
