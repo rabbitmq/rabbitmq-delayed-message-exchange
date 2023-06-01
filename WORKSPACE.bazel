@@ -1,0 +1,34 @@
+workspace(name = "rabbitmq_lvc_exchange")
+
+load(
+    "@bazel_tools//tools/build_defs/repo:http.bzl",
+    "http_archive",
+)
+load(
+    "@bazel_tools//tools/build_defs/repo:git.bzl",
+    "git_repository",
+)
+
+http_archive(
+    name = "io_buildbuddy_buildbuddy_toolchain",
+    sha256 = "48546946879b1fd2dcba327ba15776c822f2ce9a9ef1077be9bf3ecadcc1564a",
+    strip_prefix = "buildbuddy-toolchain-b2f5e7e3b126c6d7cf243227147478c0959bfc95",
+    urls = ["https://github.com/buildbuddy-io/buildbuddy-toolchain/archive/b2f5e7e3b126c6d7cf243227147478c0959bfc95.zip"],
+)
+
+load("@io_buildbuddy_buildbuddy_toolchain//:deps.bzl", "buildbuddy_deps")
+
+buildbuddy_deps()
+
+load("@io_buildbuddy_buildbuddy_toolchain//:rules.bzl", "buildbuddy")
+
+buildbuddy(
+    name = "buildbuddy_toolchain",
+    llvm = True,
+)
+
+git_repository(
+    name = "rbe",
+    branch = "linux-rbe",
+    remote = "https://github.com/rabbitmq/rbe-erlang-platform.git",
+)
