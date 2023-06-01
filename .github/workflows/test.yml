@@ -14,6 +14,7 @@ jobs:
       matrix:
         bazel_otp_name:
         - "25"
+        - "26"
     steps:
     - name: CHECKOUT
       uses: actions/checkout@v3
