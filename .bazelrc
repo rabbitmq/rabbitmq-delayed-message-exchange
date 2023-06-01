@@ -1,0 +1,52 @@
+build --enable_bzlmod
+# build --registry=https://raw.githubusercontent.com/rabbitmq/bazel-central-registry/dev/
+
+build --incompatible_strict_action_env
+build --local_test_jobs=1
+
+build --flag_alias=erlang_home=@rules_erlang//:erlang_home
+build --flag_alias=erlang_version=@rules_erlang//:erlang_version
+
+build --extra_toolchains="@erlang_config//..."
+
+build:buildbuddy --bes_results_url=https://app.buildbuddy.io/invocation/
+build:buildbuddy --bes_backend=grpcs://remote.buildbuddy.io
+build:buildbuddy --remote_cache=grpcs://remote.buildbuddy.io
+build:buildbuddy --remote_timeout=1200
+build:buildbuddy --grpc_keepalive_time=30s
+build:buildbuddy --build_metadata=REPO_URL=https://github.com/rabbitmq/rabbitmq-delayed-message-exchange.git
+build:buildbuddy --experimental_remote_cache_compression
+build:buildbuddy --experimental_remote_cache_async
+build:buildbuddy --noslim_profile
+build:buildbuddy --experimental_profile_include_target_label
+build:buildbuddy --experimental_profile_include_primary_output
+
+build:rbe --config=buildbuddy
+
+build:rbe --remote_executor=grpcs://remote.buildbuddy.io
+
+build:rbe --spawn_strategy=remote
+build:rbe --test_strategy=""
+build:rbe --jobs=50
+
+build:rbe --crosstool_top=@rbe//cc:toolchain
+build:rbe --extra_toolchains=@rbe//config:cc-toolchain
+
+build:rbe --host_platform=@rabbitmq-server//bazel/platforms:erlang_internal_platform
+
+build:rbe --host_cpu=k8
+build:rbe --cpu=k8
+
+build:rbe-24 --config=rbe
+build:rbe-24 --platforms=@rabbitmq-server//bazel/platforms:erlang_linux_24_platform
+
+build:rbe-25 --config=rbe
+build:rbe-25 --platforms=@rabbitmq-server//bazel/platforms:erlang_linux_25_3_platform
+
+build:rbe-26 --config=rbe
+build:rbe-26 --platforms=@rabbitmq-server//bazel/platforms:erlang_linux_26_platform
+
+# Try importing a user specific .bazelrc
+# You can create your own by copying and editing the template-user.bazelrc template:
+# cp template-user.bazelrc user.bazelrc
+try-import %workspace%/user.bazelrc
