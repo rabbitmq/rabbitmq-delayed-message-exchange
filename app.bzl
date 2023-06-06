@@ -44,10 +44,10 @@ def all_beam_files(name = "all_beam_files"):
             "src/rabbit_exchange_type_delayed_message.erl",
         ],
         hdrs = [":public_and_private_hdrs"],
-        app_name = "rabbitmq-delayed-message-exchange",
+        app_name = "rabbitmq_delayed_message_exchange",
         dest = "ebin",
         erlc_opts = "//:erlc_opts",
-        deps = ["@rabbitmq-server//deps/rabbit:erlang_app", "@rabbitmq-server//deps/rabbit_common:erlang_app"],
+        deps = ["@rabbitmq-server//deps/rabbit_common:erlang_app"],
     )
     filegroup(
         name = "beam_files",
@@ -66,10 +66,10 @@ def all_test_beam_files(name = "all_test_beam_files"):
             "src/rabbit_exchange_type_delayed_message.erl",
         ],
         hdrs = [":public_and_private_hdrs"],
-        app_name = "rabbitmq-delayed-message-exchange",
+        app_name = "rabbitmq_delayed_message_exchange",
         dest = "test",
         erlc_opts = "//:test_erlc_opts",
-        deps = ["@rabbitmq-server//deps/rabbit:erlang_app", "@rabbitmq-server//deps/rabbit_common:erlang_app"],
+        deps = ["@rabbitmq-server//deps/rabbit_common:erlang_app"],
     )
     filegroup(
         name = "test_beam_files",
@@ -83,7 +83,7 @@ def test_suite_beam_files(name = "test_suite_beam_files"):
         testonly = True,
         srcs = ["test/plugin_SUITE.erl"],
         outs = ["test/plugin_SUITE.beam"],
-        app_name = "rabbitmq-delayed-message-exchange",
+        app_name = "rabbitmq_delayed_message_exchange",
         erlc_opts = "//:test_erlc_opts",
         deps = ["@rabbitmq-server//deps/amqp_client:erlang_app"],
     )
