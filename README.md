@@ -186,6 +186,13 @@ You can disable this plugin by calling `rabbitmq-plugins disable
 rabbitmq_delayed_message_exchange` but note that **ALL DELAYED MESSAGES THAT
 HAVEN'T BEEN DELIVERED WILL BE LOST**.
 
+## Creating a Release
+
+1. Update `broker_version_requirements` in `helpers.bzl` & `Makefile` (Optional)
+1. Update the plugin version in `MODULE.bazel`
+1. Push a tag (i.e. `v3.12.0`) with the matching version
+1. Allow the Release workflow to run and create a draft release
+1. Review and publish the release
 
 ## LICENSE ##
 
