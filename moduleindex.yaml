@@ -170,18 +170,6 @@ rabbit:
 - rabbit_credential_validator_min_password_length
 - rabbit_credential_validator_password_regexp
 - rabbit_cuttlefish
-- rabbit_db
-- rabbit_db_binding
-- rabbit_db_cluster
-- rabbit_db_exchange
-- rabbit_db_maintenance
-- rabbit_db_msup
-- rabbit_db_policy
-- rabbit_db_queue
-- rabbit_db_rtparams
-- rabbit_db_topic_exchange
-- rabbit_db_user
-- rabbit_db_vhost
 - rabbit_db_vhost_defaults
 - rabbit_dead_letter
 - rabbit_definitions
@@ -197,7 +185,6 @@ rabbit:
 - rabbit_exchange
 - rabbit_exchange_decorator
 - rabbit_exchange_parameters
-- rabbit_exchange_type
 - rabbit_exchange_type_direct
 - rabbit_exchange_type_fanout
 - rabbit_exchange_type_headers
@@ -226,15 +213,16 @@ rabbit:
 - rabbit_limiter
 - rabbit_log_channel
 - rabbit_log_connection
+- rabbit_log_feature_flags
 - rabbit_log_mirroring
 - rabbit_log_prelaunch
 - rabbit_log_queue
 - rabbit_log_tail
+- rabbit_log_upgrade
 - rabbit_logger_exchange_h
 - rabbit_looking_glass
 - rabbit_maintenance
 - rabbit_memory_monitor
-- rabbit_message_interceptor
 - rabbit_metrics
 - rabbit_mirror_queue_coordinator
 - rabbit_mirror_queue_master
@@ -258,7 +246,6 @@ rabbit:
 - rabbit_nodes
 - rabbit_observer_cli
 - rabbit_observer_cli_classic_queues
-- rabbit_observer_cli_quorum_queues
 - rabbit_osiris_metrics
 - rabbit_parameter_validation
 - rabbit_peer_discovery
@@ -274,7 +261,6 @@ rabbit:
 - rabbit_prelaunch_logging
 - rabbit_prequeue
 - rabbit_priority_queue
-- rabbit_process
 - rabbit_queue_consumers
 - rabbit_queue_decorator
 - rabbit_queue_index
@@ -305,10 +291,11 @@ rabbit:
 - rabbit_sysmon_handler
 - rabbit_sysmon_minder
 - rabbit_table
-- rabbit_time_travel_dbg
 - rabbit_trace
 - rabbit_tracking
 - rabbit_tracking_store
+- rabbit_upgrade
+- rabbit_upgrade_functions
 - rabbit_upgrade_preparation
 - rabbit_variable_queue
 - rabbit_version
@@ -357,6 +344,7 @@ rabbit_common:
 - rabbit_env
 - rabbit_error_logger_handler
 - rabbit_event
+- rabbit_exchange_type
 - rabbit_framing
 - rabbit_framing_amqp_0_8
 - rabbit_framing_amqp_0_9_1
@@ -393,7 +381,7 @@ rabbit_common:
 - worker_pool
 - worker_pool_sup
 - worker_pool_worker
-rabbitmq-delayed-message-exchange:
+rabbitmq_delayed_message_exchange:
 - rabbit_delayed_message
 - rabbit_delayed_message_app
 - rabbit_delayed_message_sup
