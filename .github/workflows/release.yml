@@ -1,0 +1,90 @@
+name: Release
+on:
+  push:
+    tags:
+    - v3.*
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      BAZEL_OTP_NAME: 25
+    steps:
+    - name: CHECKOUT
+      uses: actions/checkout@v3
+    - name: ASSERT VERSION
+      id: versions
+      env:
+        REF_NAME: ${{ github.ref_name }}
+      run: |
+        sudo npm install --global --silent @bazel/buildozer
+
+        plugin_version="$(cat MODULE.bazel | buildozer 'print version' -:%module)"
+        echo "plugin_version=${plugin_version}" | tee -a $GITHUB_OUTPUT
+
+        tag_version="${REF_NAME#v}"
+
+        if [[ "${tag_version}" != "${plugin_version}" ]]; then
+          echo "Plugin version ${plugin_version} does not match tag ${REF_NAME}"
+          exit 1
+        fi
+
+        rmq_urls="$(cat MODULE.bazel | buildozer 'print urls' -:%archive_override)"
+        echo "rmq_urls=${rmq_urls}" | tee -a $GITHUB_OUTPUT
+    - name: MOUNT BAZEL CACHE
+      uses: actions/cache@v3.3.1
+      with:
+        path: "/home/runner/repo-cache/"
+        key: ${{ runner.os }}-repo-cache-${{ hashFiles('MODULE.bazel','WORKSPACE.bazel') }}
+        restore-keys: |
+          ${{ runner.os }}-repo-cache-
+    - name: CONFIGURE BAZEL
+      run: |
+        if [ -n "${{ secrets.BUILDBUDDY_API_KEY }}" ]; then
+        cat << EOF >> user.bazelrc
+          build:buildbuddy --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
+        EOF
+        fi
+        cat << EOF >> user.bazelrc
+          build:buildbuddy --build_metadata=ROLE=CI
+          build:buildbuddy --build_metadata=VISIBILITY=PUBLIC
+          build:buildbuddy --repository_cache=/home/runner/repo-cache/
+          build:buildbuddy --color=yes
+          build:buildbuddy --disk_cache=
+        EOF
+
+        bazelisk info release
+    - name: TEST
+      run: |
+        bazelisk test //... \
+          --config=rbe-${BAZEL_OTP_NAME} \
+          --verbose_failures
+    - name: BUILD EZ
+      run: |
+        bazelisk build :ez \
+          --config=rbe-${BAZEL_OTP_NAME} \
+          --verbose_failures
+    - name: RENAME ARTIFACT
+      id: artifact
+      run: |
+        path="rabbitmq_delayed_message_exchange-${{ steps.versions.outputs.plugin_version }}.ez"
+        echo "path=${path}" | tee -a $GITHUB_OUTPUT
+        cp bazel-bin/rabbitmq_delayed_message_exchange.ez ${path}
+    - name: UPLOAD EZ
+      uses: actions/upload-artifact@v3.1.2
+      with:
+        name: ${{ steps.artifact.outputs.path }}
+        path: ${{ steps.artifact.outputs.path }}
+        if-no-files-found: error
+    - name: CREATE RELEASE
+      id: create-release
+      uses: ncipollo/release-action@v1.12.0
+      with:
+        allowUpdates: true
+        draft: true
+        artifactErrorsFailBuild: true
+        updateOnlyUnreleased: true
+        artifacts: ${{ steps.artifact.outputs.path }}
+        body: |
+          rabbitmq_delayed_message_exchange ${{ github.ref_name }}
+
+          Built against rabbitmq-server ${{ steps.versions.outputs.rmq_urls }}
