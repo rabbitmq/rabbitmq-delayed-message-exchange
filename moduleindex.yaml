@@ -393,7 +393,7 @@ rabbit_common:
 - worker_pool
 - worker_pool_sup
 - worker_pool_worker
-rabbitmq-delayed-message-exchange:
+rabbitmq_delayed_message_exchange:
 - rabbit_delayed_message
 - rabbit_delayed_message_app
 - rabbit_delayed_message_sup
