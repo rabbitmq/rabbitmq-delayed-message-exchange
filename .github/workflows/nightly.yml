@@ -5,7 +5,6 @@ on:
   workflow_dispatch:
 jobs:
   test:
-    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
@@ -15,50 +14,10 @@ jobs:
         - main
         - v3.12.x
         - v3.11.x
-    steps:
-    - name: CHECKOUT
-      uses: actions/checkout@v3
-      with:
-        ref: ${{ matrix.branch }}
-    - name: MOUNT BAZEL CACHE
-      uses: actions/cache@v3.3.1
-      with:
-        path: "/home/runner/repo-cache/"
-        key: ${{ runner.os }}-repo-cache-${{ hashFiles('MODULE.bazel','WORKSPACE.bazel') }}
-        restore-keys: |
-          ${{ runner.os }}-repo-cache-
-    - name: CONFIGURE BAZEL
-      run: |
-        if [ -n "${{ secrets.BUILDBUDDY_API_KEY }}" ]; then
-        cat << EOF >> user.bazelrc
-          build:buildbuddy --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
-        EOF
-        fi
-        cat << EOF >> user.bazelrc
-          build:buildbuddy --build_metadata=ROLE=CI
-          build:buildbuddy --build_metadata=VISIBILITY=PUBLIC
-          build:buildbuddy --repository_cache=/home/runner/repo-cache/
-          build:buildbuddy --color=yes
-          build:buildbuddy --disk_cache=
-        EOF
-
-        bazelisk info release
-    - name: CONFIGURE rabbitmq-server BRANCH
-      run: |
-        sudo npm install --global --silent @bazel/buildozer
-
-        branch="${{ matrix.branch }}"
-        version="${branch#v}"
-
-        echo "$(cat MODULE.bazel | buildozer 'set strip_prefix "rabbitmq-server-'${version}'"' -:%archive_override)" > MODULE.bazel
-        echo "$(cat MODULE.bazel | buildozer 'set urls ["https://github.com/rabbitmq/rabbitmq-server/archive/refs/heads/${{ matrix.branch }}.zip"]' -:%archive_override)" > MODULE.bazel
-
-        git diff
-    - name: TEST
-      run: |
-        bazelisk test //... \
-          --config=rbe-${{ matrix.bazel_otp_name }} \
-          --verbose_failures
+    uses: rabbitmq/rabbitmq-lvc-exchange/.github/workflows/bazel-test-nightly.yml@main
+    with:
+      bazel_otp_name: ${{ matrix.bazel_otp_name }}
+      branch: ${{ matrix.branch }}
   summary:
     needs:
     - test
