@@ -1,11 +1,8 @@
-name: Test
+name: Test (Nightly)
 on:
-  push:
-    branches:
-      - main
-      - v3.12.x
-      - v3.11.x
-  pull_request:
+  schedule:
+  - cron: '0 3 * * *'
+  workflow_dispatch:
 jobs:
   test:
     strategy:
@@ -13,10 +10,14 @@ jobs:
       matrix:
         bazel_otp_name:
         - "25"
-        - "26"
-    uses: rabbitmq/rabbitmq-lvc-exchange/.github/workflows/bazel-test.yml@main
+        branch:
+        - main
+        - v3.12.x
+        - v3.11.x
+    uses: rabbitmq/rabbitmq-lvc-exchange/.github/workflows/bazel-test-nightly.yml@main
     with:
       bazel_otp_name: ${{ matrix.bazel_otp_name }}
+      branch: ${{ matrix.branch }}
   summary:
     needs:
     - test
