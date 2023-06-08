@@ -1,0 +1,28 @@
+name: Test (Nightly)
+on:
+  schedule:
+  - cron: '0 3 * * *'
+  workflow_dispatch:
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        bazel_otp_name:
+        - "25"
+        branch:
+        - main
+        - v3.12.x
+        - v3.11.x
+    uses: rabbitmq/rabbitmq-lvc-exchange/.github/workflows/bazel-test-nightly.yml@main
+    with:
+      bazel_otp_name: ${{ matrix.bazel_otp_name }}
+      branch: ${{ matrix.branch }}
+  summary:
+    needs:
+    - test
+    runs-on: ubuntu-latest
+    steps:
+    - name: SUMMARY
+      run: |
+        echo "SUCCESS"

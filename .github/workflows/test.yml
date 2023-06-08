@@ -8,12 +8,12 @@ on:
   pull_request:
 jobs:
   test:
-    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         bazel_otp_name:
         - "25"
+<<<<<<< HEAD
     steps:
     - name: CHECKOUT
       uses: actions/checkout@v3
@@ -45,6 +45,12 @@ jobs:
         bazelisk test //... \
           --config=rbe-${{ matrix.bazel_otp_name }} \
           --verbose_failures
+=======
+        - "26"
+    uses: rabbitmq/rabbitmq-lvc-exchange/.github/workflows/bazel-test.yml@main
+    with:
+      bazel_otp_name: ${{ matrix.bazel_otp_name }}
+>>>>>>> 76baa6d (Use reusable actions workflows from rabbitmq-lvc-exchange)
   summary:
     needs:
     - test
