@@ -172,7 +172,7 @@ route(#delay_key{exchange = Ex}, Deliveries, State) ->
                       D2 = swap_delay_header(D),
                       Dests = rabbit_exchange:route(Ex, D2),
                       Qs = rabbit_amqqueue:lookup_many(Dests),
-                      rabbit_amqqueue:deliver(Qs, D2),
+                      rabbit_queue_type:deliver(Qs, D2, #{}, stateless),
                       bump_routed_stats(ExName, Qs, State)
               end, Deliveries).
 

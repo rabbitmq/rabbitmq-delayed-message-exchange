@@ -12,20 +12,29 @@
 
 -export([get_delay/1, swap_delay_header/1]).
 
--define(INTEGER_ARG_TYPES, [byte, short, signedint, long, unsignedbyte, unsignedshort, unsignedint]).
+-define(INTEGER_ARG_TYPES, [long, ubyte, short, ushort, int, uint]).
 
--define(STRING_ARG_TYPES, [longstr, shortstr]).
+-define(STRING_ARG_TYPES, [utf8, binary]).
 
--define(FLOAT_ARG_TYPES, [decimal, double, float]).
+-define(FLOAT_ARG_TYPES, [double, float]).
 
 -import(rabbit_misc, [table_lookup/2, set_table_value/4]).
 
 get_delay(Delivery) ->
-    case msg_headers(Delivery) of
+    case mc:x_header(<<"x-delay">>, Delivery) of
         undefined ->
             {error, nodelay};
-        H ->
-            get_delay_header(H)
+        {Type, Delay} ->
+            case check_int_arg(Type) of
+                ok -> {ok, Delay};
+                _  ->
+                    case try_convert_to_int(Type, Delay) of
+                        {ok, Converted} -> {ok, Converted};
+                        _               -> {error, nodelay}
+                    end
+            end;
+        _ ->
+            {error, nodelay}
     end.
 
 get_delay_header(H) ->
@@ -48,51 +57,16 @@ get_delay_header(H) ->
 %% lay after the next exchange so these queues/consumers can tell the
 %% message comes via the delay plugin.
 swap_delay_header(Delivery) ->
-    case msg_headers(Delivery) of
-        undefined ->
-            Delivery;
-        H ->
-            case get_delay_header(H) of
-                {ok, Delay} ->
-                    H2 = set_table_value(H, <<"x-delay">>, signedint, -Delay),
-                    set_delivery_headers(Delivery, H2);
-                _  ->
-                    Delivery
-            end
+    case get_delay(Delivery) of
+        {ok, Delay} ->
+            mc:set_annotation(<<"x-delay">>, -Delay, Delivery);
+        _ ->
+            Delivery
     end.
-
-set_delivery_headers(Delivery, H) ->
-    Msg = get_msg(Delivery),
-    Content = get_content(Msg),
-    Props = get_props(Content),
-
-    Props2 = Props#'P_basic'{headers = H},
-    Content2 = Content#content{properties = Props2},
-    Msg2 = Msg#basic_message{content = Content2},
-
-    Delivery#delivery{message = Msg2}.
-
-msg_headers(Delivery) ->
-    lists:foldl(fun (F, Acc) -> F(Acc) end,
-                Delivery,
-                [fun get_msg/1, fun get_content/1,
-                 fun get_props/1, fun get_headers/1]).
-
-get_msg(#delivery{message = Msg}) ->
-    Msg.
-
-get_content(#basic_message{content = Content}) ->
-    Content.
-
-get_props(#content{properties = Props}) ->
-    Props.
-
-get_headers(#'P_basic'{headers = H}) ->
-    H.
 
 try_convert_to_int(Type, Delay) ->
     case lists:member(Type, ?STRING_ARG_TYPES) of
-        true  -> {ok, binary_to_integer(Delay)};
+        true  -> {ok, rabbit_data_coercion:to_integer(Delay)};
         false -> 
             case lists:member(Type, ?FLOAT_ARG_TYPES) of
                 true  -> {ok, trunc(Delay)};
