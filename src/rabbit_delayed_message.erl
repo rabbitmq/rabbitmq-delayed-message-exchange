@@ -46,7 +46,7 @@
 
 -spec internal_delay_message(t_reference(),
                              rabbit_types:exchange(),
-                             rabbit_types:delivery(),
+                             mc:state(),
                              delay()) ->
                                     nodelay | {ok, t_reference()}.
 
@@ -80,8 +80,8 @@ start_link() ->
 go() ->
     gen_server:cast(?MODULE, go).
 
-delay_message(Exchange, Delivery, Delay) ->
-    gen_server:call(?MODULE, {delay_message, Exchange, Delivery, Delay},
+delay_message(Exchange, Message, Delay) ->
+    gen_server:call(?MODULE, {delay_message, Exchange, Message, Delay},
                     infinity).
 
 setup_mnesia() ->
@@ -118,9 +118,9 @@ init([]) ->
     _ = recover(),
     {ok, #state{timer = not_set}}.
 
-handle_call({delay_message, Exchange, Delivery, Delay},
+handle_call({delay_message, Exchange, Message, Delay},
             _From, State = #state{timer = CurrTimer}) ->
-    Reply = {ok, NewTimer} = internal_delay_message(CurrTimer, Exchange, Delivery, Delay),
+    Reply = {ok, NewTimer} = internal_delay_message(CurrTimer, Exchange, Message, Delay),
     State2 = State#state{timer = NewTimer},
     {reply, Reply, State2};
 handle_call(refresh_config, _From, State) ->
@@ -168,22 +168,28 @@ maybe_delay_first() ->
 
 route(#delay_key{exchange = Ex}, Deliveries, State) ->
     ExName = Ex#exchange.name,
-    lists:map(fun (#delay_entry{delivery = D}) ->
-                      D2 = swap_delay_header(D),
-                      Dests = rabbit_exchange:route(Ex, D2),
+    lists:map(fun (#delay_entry{delivery = Msg0}) ->
+                      Msg1 = case Msg0 of
+                               #delivery{message = BasicMessage} ->
+                                   mc_amqpl:from_basic_message(BasicMessage);
+                               _MC ->
+                                   Msg0
+                           end,
+                      Msg2 = swap_delay_header(Msg1),
+                      Dests = rabbit_exchange:route(Ex, Msg2),
                       Qs = rabbit_amqqueue:lookup_many(Dests),
-                      _ = rabbit_queue_type:deliver(Qs, D2, #{}, stateless),
+                      _ = rabbit_queue_type:deliver(Qs, Msg2, #{}, stateless),
                       bump_routed_stats(ExName, Qs, State)
               end, Deliveries).
 
-internal_delay_message(CurrTimer, Exchange, Delivery, Delay) ->
+internal_delay_message(CurrTimer, Exchange, Message, Delay) ->
     Now = erlang:system_time(milli_seconds),
     %% keys are timestamps in milliseconds,in the future
     DelayTS = Now + Delay,
     mnesia:dirty_write(?INDEX_TABLE_NAME,
                        make_index(DelayTS, Exchange)),
     mnesia:dirty_write(?TABLE_NAME,
-                       make_delay(DelayTS, Exchange, Delivery)),
+                       make_delay(DelayTS, Exchange, Message)),
     case CurrTimer of
         not_set ->
             %% No timer in progress, so we start our own.
