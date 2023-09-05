@@ -40,7 +40,7 @@
 
 
 -spec delay_message(rabbit_types:exchange(),
-                    rabbit_types:delivery(),
+                    mc:state(),
                     delay()) ->
                            nodelay | {ok, t_reference()}.
 
