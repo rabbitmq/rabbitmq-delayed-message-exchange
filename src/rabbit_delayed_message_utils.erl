@@ -32,24 +32,7 @@ get_delay(Delivery) ->
                         {ok, Converted} -> {ok, Converted};
                         _               -> {error, nodelay}
                     end
-            end;
-        _ ->
-            {error, nodelay}
-    end.
-
-get_delay_header(H) ->
-    case table_lookup(H, <<"x-delay">>) of
-        {Type, Delay} ->
-            case check_int_arg(Type) of
-                ok -> {ok, Delay};
-                _  -> 
-                    case try_convert_to_int(Type, Delay) of
-                        {ok, Converted} -> {ok, Converted};
-                        _               -> {error, nodelay}
-                    end
-            end;
-        _ ->
-            {error, nodelay}
+            end
     end.
 
 %% set the x-delay header to -Delay, so it won't be re-delayed and the
