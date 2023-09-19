@@ -171,7 +171,7 @@ route(#delay_key{exchange = Ex}, Deliveries, State) ->
     lists:map(fun (#delay_entry{delivery = Msg0}) ->
                       Msg1 = case Msg0 of
                                #delivery{message = BasicMessage} ->
-                                   mc_amqpl:from_basic_message(BasicMessage);
+                                     BasicMessage;
                                _MC ->
                                    Msg0
                            end,

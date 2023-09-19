@@ -48,8 +48,7 @@ route(X = #exchange{name = Name},
             %% route the message using proxy module
             case ?EXCHANGE(X) of
                 rabbit_exchange_type_direct ->
-                    RKs0 = mc:get_annotation(routing_keys, Message),
-                    RKs = lists:usort(RKs0),
+                    RKs = mc:get_annotation(routing_keys, Message),
                     %% Exchange type x-delayed-message routes via "direct exchange routing v1"
                     %% even when feature flag direct_exchange_routing_v2 is enabled because
                     %% table rabbit_index_route only stores bindings whose source exchange
