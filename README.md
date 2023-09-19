@@ -186,6 +186,15 @@ You can disable this plugin by calling `rabbitmq-plugins disable
 rabbitmq_delayed_message_exchange` but note that **ALL DELAYED MESSAGES THAT
 HAVEN'T BEEN DELIVERED WILL BE LOST**.
 
+## Building the Plugin
+
+```shell
+bazel build //:erlang_app
+bazel build :ez
+```
+
+The EZ file is created in the `bazel-bin` directory.
+
 ## Creating a Release
 
 1. Update `broker_version_requirements` in `helpers.bzl` & `Makefile` (Optional)
