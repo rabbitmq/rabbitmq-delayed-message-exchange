@@ -25,7 +25,7 @@
 -import(rabbit_misc, [table_lookup/2]).
 -import(rabbit_delayed_message_utils, [get_delay/1]).
 
--export([description/0, serialise_events/0, route/2]).
+-export([description/0, serialise_events/0, route/3]).
 -export([validate/1, validate_binding/2,
          create/2, delete/2, policy_changed/2,
          add_binding/3, remove_bindings/3, assert_args_equivalence/2]).
@@ -41,19 +41,21 @@ description() ->
      {description, <<"Delayed Message Exchange.">>}].
 
 route(X = #exchange{name = Name},
-      Delivery = #delivery{message = #basic_message{routing_keys = RKeys}}) ->
-    case delay_message(X, Delivery) of
+      Message,
+      Opts) ->
+    case delay_message(X, Message) of
         nodelay ->
             %% route the message using proxy module
             case ?EXCHANGE(X) of
                 rabbit_exchange_type_direct ->
+                    RKs = mc:get_annotation(routing_keys, Message),
                     %% Exchange type x-delayed-message routes via "direct exchange routing v1"
                     %% even when feature flag direct_exchange_routing_v2 is enabled because
                     %% table rabbit_index_route only stores bindings whose source exchange
                     %% is of type direct exchange.
-                    rabbit_router:match_routing_key(Name, RKeys);
+                    rabbit_router:match_routing_key(Name, RKs);
                 Mod ->
-                    Mod:route(X, Delivery)
+                    Mod:route(X, Message, Opts)
             end;
         _ ->
             []
@@ -108,10 +110,10 @@ info(Exchange, Items) ->
 
 %%----------------------------------------------------------------------------
 
-delay_message(Exchange, Delivery) ->
-    case get_delay(Delivery) of
+delay_message(Exchange, Message) ->
+    case get_delay(Message) of
         {ok, Delay} when Delay > 0, Delay =< ?ERL_MAX_T ->
-            rabbit_delayed_message:delay_message(Exchange, Delivery, Delay);
+            rabbit_delayed_message:delay_message(Exchange, Message, Delay);
         _ ->
             nodelay
     end.
