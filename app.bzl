@@ -7,6 +7,7 @@ def all_srcs(name = "all_srcs"):
         srcs = [
             "src/rabbit_delayed_message.erl",
             "src/rabbit_delayed_message_app.erl",
+            "src/rabbit_delayed_message_khepri.erl",
             "src/rabbit_delayed_message_sup.erl",
             "src/rabbit_delayed_message_utils.erl",
             "src/rabbit_exchange_type_delayed_message.erl",
@@ -39,6 +40,7 @@ def all_beam_files(name = "all_beam_files"):
         srcs = [
             "src/rabbit_delayed_message.erl",
             "src/rabbit_delayed_message_app.erl",
+            "src/rabbit_delayed_message_khepri.erl",
             "src/rabbit_delayed_message_sup.erl",
             "src/rabbit_delayed_message_utils.erl",
             "src/rabbit_exchange_type_delayed_message.erl",
@@ -61,6 +63,7 @@ def all_test_beam_files(name = "all_test_beam_files"):
         srcs = [
             "src/rabbit_delayed_message.erl",
             "src/rabbit_delayed_message_app.erl",
+            "src/rabbit_delayed_message_khepri.erl",
             "src/rabbit_delayed_message_sup.erl",
             "src/rabbit_delayed_message_utils.erl",
             "src/rabbit_exchange_type_delayed_message.erl",

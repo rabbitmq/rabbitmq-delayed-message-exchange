@@ -65,6 +65,7 @@ osiris:
 - osiris
 - osiris_app
 - osiris_bench
+- osiris_bloom
 - osiris_counters
 - osiris_ets
 - osiris_log
@@ -396,6 +397,7 @@ rabbit_common:
 rabbitmq_delayed_message_exchange:
 - rabbit_delayed_message
 - rabbit_delayed_message_app
+- rabbit_delayed_message_khepri
 - rabbit_delayed_message_sup
 - rabbit_delayed_message_utils
 - rabbit_exchange_type_delayed_message

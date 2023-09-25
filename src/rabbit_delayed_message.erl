@@ -14,6 +14,7 @@
 
 -module(rabbit_delayed_message).
 -include_lib("rabbit_common/include/rabbit.hrl").
+
 -rabbit_boot_step({?MODULE,
                    [{description, "exchange delayed message mnesia setup"},
                     {mfa, {?MODULE, setup_mnesia, []}},
@@ -95,7 +96,15 @@ setup_mnesia() ->
                                                  record_info(fields, delay_index)},
                                                 {type, ordered_set},
                                                 {disc_copies, [node()]}]),
-    rabbit_table:wait([?TABLE_NAME, ?INDEX_TABLE_NAME]).
+    rabbit_table:wait([?TABLE_NAME, ?INDEX_TABLE_NAME]),
+
+    %% TODO: Setup stream queues. N number of queues, with different
+    %% gc timeouts. What should N be, what should the time intervals be
+    %% TODO: Setup khepri storage.
+    %% [$exchange, $some_key, timeout]
+    %% [$exchange, $some_key, offset]
+    %% [$exchange, $some_key, msg_as_binary]
+    ok = rabbit_delayed_message_khepri:setup().
 
 disable_plugin() ->
     _ = mnesia:delete_table(?INDEX_TABLE_NAME),
@@ -190,6 +199,10 @@ internal_delay_message(CurrTimer, Exchange, Message, Delay) ->
                        make_index(DelayTS, Exchange)),
     mnesia:dirty_write(?TABLE_NAME,
                        make_delay(DelayTS, Exchange, Message)),
+
+    Key = term_to_binary(make_key(DelayTS, Exchange)),
+    ExchangeName = Exchange#exchange.name#resource.name,
+    rabbit_delayed_message_khepri:put([ExchangeName, Key], DelayTS),
     case CurrTimer of
         not_set ->
             %% No timer in progress, so we start our own.
