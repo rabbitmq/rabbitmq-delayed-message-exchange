@@ -14,20 +14,21 @@
 
 -module(rabbit_delayed_message).
 -include_lib("rabbit_common/include/rabbit.hrl").
+-include_lib("khepri/include/khepri.hrl").
 
 -rabbit_boot_step({?MODULE,
                    [{description, "exchange delayed message mnesia setup"},
-                    {mfa, {?MODULE, setup_mnesia, []}},
+                    {mfa, {?MODULE, setup_khepri, []}},
                     {cleanup, {?MODULE, disable_plugin, []}},
                     {requires, external_infrastructure},
                     {enables, rabbit_registry}]}).
 
 -behaviour(gen_server).
 
--export([start_link/0, delay_message/3, setup_mnesia/0, disable_plugin/0, go/0]).
+-export([start_link/0, delay_message/3, setup_khepri/0, disable_plugin/0, go/0]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
          code_change/3]).
--export([messages_delayed/1]).
+-export([messages_delayed/1, route/3]).
 
 %% For testing, debugging and manual use
 -export([refresh_config/0,
@@ -53,6 +54,7 @@
 
 -define(TABLE_NAME, append_to_atom(?MODULE, node())).
 -define(INDEX_TABLE_NAME, append_to_atom(?TABLE_NAME, "_index")).
+-define(Timeout, 5000).
 
 -record(state, {timer,
                 stats_state}).
@@ -68,10 +70,10 @@
           ref        %% ref to make records distinct for 'bag' semantics.
         }).
 
--record(delay_index,
-        { delay_key, %% delay_key record
-          const      %% record must have two fields
-        }).
+%% -record(delay_index,
+%%         { delay_key, %% delay_key record
+%%           const      %% record must have two fields
+%%         }).
 
 %%--------------------------------------------------------------------
 
@@ -85,19 +87,7 @@ delay_message(Exchange, Message, Delay) ->
     gen_server:call(?MODULE, {delay_message, Exchange, Message, Delay},
                     infinity).
 
-setup_mnesia() ->
-    _ = mnesia:create_table(?TABLE_NAME, [{record_name, delay_entry},
-                                          {attributes,
-                                           record_info(fields, delay_entry)},
-                                          {type, bag},
-                                          {disc_copies, [node()]}]),
-    _ = mnesia:create_table(?INDEX_TABLE_NAME, [{record_name, delay_index},
-                                                {attributes,
-                                                 record_info(fields, delay_index)},
-                                                {type, ordered_set},
-                                                {disc_copies, [node()]}]),
-    rabbit_table:wait([?TABLE_NAME, ?INDEX_TABLE_NAME]),
-
+setup_khepri() ->
     %% TODO: Setup stream queues. N number of queues, with different
     %% gc timeouts. What should N be, what should the time intervals be
     %% TODO: Setup khepri storage.
@@ -107,15 +97,14 @@ setup_mnesia() ->
     ok = rabbit_delayed_message_khepri:setup().
 
 disable_plugin() ->
-    _ = mnesia:delete_table(?INDEX_TABLE_NAME),
-    _ = mnesia:delete_table(?TABLE_NAME),
     ok.
 
-messages_delayed(Exchange) ->
-    ExchangeName = Exchange#exchange.name,
-    MatchHead = #delay_entry{delay_key = make_key('_', #exchange{name = ExchangeName, _ = '_'}),
-                             delivery  = '_', ref       = '_'},
-    Delays = mnesia:dirty_select(?TABLE_NAME, [{MatchHead, [], [true]}]),
+messages_delayed(_Exchange) ->
+    %% ExchangeName = Exchange#exchange.name,
+    %% MatchHead = #delay_entry{delay_key = make_key('_', #exchange{name = ExchangeName, _ = '_'}),
+    %%                          delivery  = '_', ref       = '_'},
+    %% Delays = mnesia:dirty_select(?TABLE_NAME, [{MatchHead, [], [true]}]),
+    Delays = [],
     length(Delays).
 
 refresh_config() ->
@@ -139,20 +128,26 @@ handle_call(_Req, _From, State) ->
 
 handle_cast(go, State) ->
     State2 = refresh_config(State),
-    {noreply, State2#state{timer = maybe_delay_first()}};
+    Ref = erlang:send_after(?Timeout, self(), check_msgs),
+    {noreply, State2#state{timer = Ref}};
 handle_cast(_C, State) ->
     {noreply, State}.
 
-handle_info({timeout, _TimerRef, {deliver, Key}}, State) ->
-    case mnesia:dirty_read(?TABLE_NAME, Key) of
-        [] ->
-            mnesia:dirty_delete(?INDEX_TABLE_NAME, Key);
-        Deliveries ->
-            _ = route(Key, Deliveries, State),
-            mnesia:dirty_delete(?TABLE_NAME, Key),
-            mnesia:dirty_delete(?INDEX_TABLE_NAME, Key)
-    end,
-    {noreply, State#state{timer = maybe_delay_first()}};
+handle_info(check_msgs, State) ->
+    {ok, Es}  =
+        rabbit_delayed_message_khepri:get_many(
+          [
+           #if_all{conditions =
+                       [#if_path_matches{regex=any},
+                        #if_data_matches{pattern = '$1',
+                                         conditions = [{'<', '$1', erlang:system_time(milli_seconds)}]}
+                       ]
+                  }
+          ]),
+    Keys = [PathPattern || {PathPattern, _} <- maps:to_list(Es)],
+    io:format("DMX>> ~p", [Keys]),
+    Ref = erlang:send_after(?Timeout, self(), check_msgs),
+    {noreply, State#state{timer = Ref}};
 handle_info(_I, State) ->
     {noreply, State}.
 
@@ -163,18 +158,17 @@ code_change(_, State, _) -> {ok, State}.
 
 %%--------------------------------------------------------------------
 
-maybe_delay_first() ->
-    case mnesia:dirty_first(?INDEX_TABLE_NAME) of
-        %% destructuring to prevent matching '$end_of_table'
-        #delay_key{timestamp = FirstTS} = Key2 ->
-            %% there are messages that will expire and need to be delivered
-            Now = erlang:system_time(milli_seconds),
-            start_timer(FirstTS - Now, Key2);
-        _ ->
-            %% nothing to do
-            not_set
-    end.
-
+%% maybe_delay_first() ->
+%%     case mnesia:dirty_first(?INDEX_TABLE_NAME) of
+%%         %% destructuring to prevent matching '$end_of_table'
+%%         #delay_key{timestamp = FirstTS} = Key2 ->
+%%             %% there are messages that will expire and need to be delivered
+%%             Now = erlang:system_time(milli_seconds),
+%%             start_timer(FirstTS - Now, Key2);
+%%         _ ->
+%%             %% nothing to do
+%%             not_set
+%%     end.
 route(#delay_key{exchange = Ex}, Deliveries, State) ->
     ExName = Ex#exchange.name,
     lists:map(fun (#delay_entry{delivery = Msg0}) ->
@@ -191,55 +185,56 @@ route(#delay_key{exchange = Ex}, Deliveries, State) ->
                       bump_routed_stats(ExName, Qs, State)
               end, Deliveries).
 
-internal_delay_message(CurrTimer, Exchange, Message, Delay) ->
+internal_delay_message(_CurrTimer, Exchange, _Message, Delay) ->
     Now = erlang:system_time(milli_seconds),
     %% keys are timestamps in milliseconds,in the future
     DelayTS = Now + Delay,
-    mnesia:dirty_write(?INDEX_TABLE_NAME,
-                       make_index(DelayTS, Exchange)),
-    mnesia:dirty_write(?TABLE_NAME,
-                       make_delay(DelayTS, Exchange, Message)),
+    %% mnesia:dirty_write(?INDEX_TABLE_NAME,
+    %%                    make_index(DelayTS, Exchange)),
+    %% mnesia:dirty_write(?TABLE_NAME,
+    %%                    make_delay(DelayTS, Exchange, Message)),
+    Key = make_key(DelayTS, Exchange),
+    rabbit_delayed_message_khepri:put([Key], DelayTS).
+    %%Store the actual msg with same key.
 
-    Key = term_to_binary(make_key(DelayTS, Exchange)),
-    ExchangeName = Exchange#exchange.name#resource.name,
-    rabbit_delayed_message_khepri:put([ExchangeName, Key], DelayTS),
-    case CurrTimer of
-        not_set ->
-            %% No timer in progress, so we start our own.
-            {ok, maybe_delay_first()};
-        _ ->
-            case erlang:read_timer(CurrTimer) of
-                false ->
-                    %% Timer is already expired.  Handler will be invoked soon.
-                    {ok, CurrTimer};
-                CurrMS when Delay < CurrMS ->
-                    %% Current timer lasts longer that new message delay
-                    _ = erlang:cancel_timer(CurrTimer),
-                    {ok, start_timer(Delay, make_key(DelayTS, Exchange))};
-                _ ->
-                    %% Timer is set to expire sooner than this
-                    %% message's scheduled delivery time.
-                    {ok, CurrTimer}
-            end
-    end.
+
+    %% case CurrTimer of
+    %%     not_set ->
+    %%         %% No timer in progress, so we start our own.
+    %%         {ok, maybe_delay_first()};
+    %%     _ ->
+    %%         case erlang:read_timer(CurrTimer) of
+    %%             false ->
+    %%                 %% Timer is already expired.  Handler will be invoked soon.
+    %%                 {ok, CurrTimer};
+    %%             CurrMS when Delay < CurrMS ->
+    %%                 %% Current timer lasts longer that new message delay
+    %%                 _ = erlang:cancel_timer(CurrTimer),
+    %%                 {ok, start_timer(Delay, make_key(DelayTS, Exchange))};
+    %%             _ ->
+    %%                 %% Timer is set to expire sooner than this
+    %%                 %% message's scheduled delivery time.
+    %%                 {ok, CurrTimer}
+    %%         end
+    %% end.
 
 %% Key will be used upon message receipt to fetch
 %% the deliveries from the database
-start_timer(Delay, Key) ->
-    erlang:start_timer(erlang:max(0, Delay), self(), {deliver, Key}).
+%% start_timer(Delay, Key) ->
+%%     erlang:start_timer(erlang:max(0, Delay), self(), {deliver, Key}).
 
-make_delay(DelayTS, Exchange, Delivery) ->
-    #delay_entry{delay_key = make_key(DelayTS, Exchange),
-                 delivery  = Delivery,
-                 ref       = make_ref()}.
+%% make_delay(DelayTS, Exchange, Delivery) ->
+%%     #delay_entry{delay_key = make_key(DelayTS, Exchange),
+%%                  delivery  = Delivery,
+%%                  ref       = make_ref()}.
 
-make_index(DelayTS, Exchange) ->
-    #delay_index{delay_key = make_key(DelayTS, Exchange),
-                 const = true}.
+%% make_index(DelayTS, Exchange) ->
+%%     #delay_index{delay_key = make_key(DelayTS, Exchange),
+%%                  const = true}.
 
 make_key(DelayTS, Exchange) ->
-    #delay_key{timestamp = DelayTS,
-               exchange  = Exchange}.
+    BinDelayTS = integer_to_binary(DelayTS),
+    <<Exchange/binary, BinDelayTS>>.
 
 append_to_atom(Atom, Append) when is_atom(Append) ->
     append_to_atom(Atom, atom_to_list(Append));

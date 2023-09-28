@@ -5,7 +5,7 @@ PROJECT_MOD = rabbit_delayed_message_app
 RABBITMQ_VERSION ?= main
 
 define PROJECT_APP_EXTRA_KEYS
-	{broker_version_requirements, ["3.12.0"]}
+	{broker_version_requirements, ["3.13.0"]}
 endef
 
 dep_amqp_client                = git_rmq-subfolder rabbitmq-erlang-client $(RABBITMQ_VERSION)
@@ -14,7 +14,9 @@ dep_rabbit                     = git_rmq-subfolder rabbitmq-server $(RABBITMQ_VE
 dep_rabbitmq_ct_client_helpers = git_rmq-subfolder rabbitmq-ct-client-helpers $(RABBITMQ_VERSION)
 dep_rabbitmq_ct_helpers        = git_rmq-subfolder rabbitmq-ct-helpers $(RABBITMQ_VERSION)
 
-DEPS = rabbit_common rabbit
+dep_khepri = git https://github.com/rabbitmq/khepri.git main
+
+DEPS = rabbit_common rabbit khepri
 TEST_DEPS = ct_helper rabbitmq_ct_helpers rabbitmq_ct_client_helpers amqp_client
 dep_ct_helper = git https://github.com/extend/ct_helper.git master
 

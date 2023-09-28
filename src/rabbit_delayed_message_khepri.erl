@@ -18,7 +18,8 @@
 -include_lib("rabbit_common/include/logging.hrl").
 
 -export([setup/0,
-         put/2]).
+         put/2,
+         get_many/1]).
 
 -define(RA_SYSTEM, dmx_coordination).
 -define(RA_CLUSTER_NAME, rabbitmq_dmx_metadata).
@@ -113,3 +114,6 @@ wait_for_leader(Timeout, Retries) ->
 
 put(PathPattern, Data) ->
     khepri:put(?STORE_ID, PathPattern, Data).
+
+get_many(PathPattern) ->
+    khepri:get_many(?STORE_ID, PathPattern).
