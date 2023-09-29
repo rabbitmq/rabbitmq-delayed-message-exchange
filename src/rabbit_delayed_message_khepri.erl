@@ -19,6 +19,8 @@
 
 -export([setup/0,
          put/2,
+         delete/1,
+         get/1,
          get_many/1]).
 
 -define(RA_SYSTEM, dmx_coordination).
@@ -114,6 +116,12 @@ wait_for_leader(Timeout, Retries) ->
 
 put(PathPattern, Data) ->
     khepri:put(?STORE_ID, PathPattern, Data).
+
+get(PathPattern) ->
+    khepri:get(?STORE_ID, PathPattern).
+
+delete(PathPattern) ->
+    khepri:delete(?STORE_ID, PathPattern).
 
 get_many(PathPattern) ->
     khepri:get_many(?STORE_ID, PathPattern).

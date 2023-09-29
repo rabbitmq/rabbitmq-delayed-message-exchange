@@ -50,7 +50,7 @@ swap_delay_header(Delivery) ->
 try_convert_to_int(Type, Delay) ->
     case lists:member(Type, ?STRING_ARG_TYPES) of
         true  -> {ok, rabbit_data_coercion:to_integer(Delay)};
-        false -> 
+        false ->
             case lists:member(Type, ?FLOAT_ARG_TYPES) of
                 true  -> {ok, trunc(Delay)};
                 false -> {error, {unacceptable_type, Type}}

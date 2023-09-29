@@ -1,4 +1,4 @@
-%% This Source Code Form is subject to the terms of the Mozilla Public
+% This Source Code Form is subject to the terms of the Mozilla Public
 %% License, v. 2.0. If a copy of the MPL was not distributed with this
 %% file, You can obtain one at https://mozilla.org/MPL/2.0/.
 %%
@@ -57,18 +57,19 @@
 -define(Timeout, 5000).
 
 -record(state, {timer,
+                kv_store,
                 stats_state}).
 
--record(delay_key,
-        { timestamp, %% timestamp delay
-          exchange   %% rabbit_types:exchange()
-        }).
+%% -record(delay_key,
+%%         { timestamp, %% timestamp delay
+%%           exchange   %% rabbit_types:exchange()
+%%         }).
 
--record(delay_entry,
-        { delay_key, %% delay_key record
-          delivery,  %% the message delivery
-          ref        %% ref to make records distinct for 'bag' semantics.
-        }).
+%% -record(delay_entry,
+%%         { delay_key, %% delay_key record
+%%           delivery,  %% the message delivery
+%%           ref        %% ref to make records distinct for 'bag' semantics.
+%%         }).
 
 %% -record(delay_index,
 %%         { delay_key, %% delay_key record
@@ -114,13 +115,12 @@ refresh_config() ->
 
 init([]) ->
     _ = recover(),
-    {ok, #state{timer = not_set}}.
+    {ok, #state{kv_store = #{}}}.
 
 handle_call({delay_message, Exchange, Message, Delay},
-            _From, State = #state{timer = CurrTimer}) ->
-    Reply = {ok, NewTimer} = internal_delay_message(CurrTimer, Exchange, Message, Delay),
-    State2 = State#state{timer = NewTimer},
-    {reply, Reply, State2};
+            _From, State = #state{kv_store = KVStore}) ->
+    {ok, NewKVStore} = internal_delay_message(KVStore, Exchange, Message, Delay),
+    {reply, ok, State#state{kv_store = NewKVStore}};
 handle_call(refresh_config, _From, State) ->
     {reply, ok, refresh_config(State)};
 handle_call(_Req, _From, State) ->
@@ -136,16 +136,17 @@ handle_cast(_C, State) ->
 handle_info(check_msgs, State) ->
     {ok, Es}  =
         rabbit_delayed_message_khepri:get_many(
-          [
+          [delayed_message_exchange,
+           #if_path_matches{regex=any},
            #if_all{conditions =
-                       [#if_path_matches{regex=any},
+                       [delivery_time,
                         #if_data_matches{pattern = '$1',
                                          conditions = [{'<', '$1', erlang:system_time(milli_seconds)}]}
                        ]
                   }
           ]),
-    Keys = [PathPattern || {PathPattern, _} <- maps:to_list(Es)],
-    io:format("DMX>> ~p", [Keys]),
+    Keys = [[delayed_message_exchange, Key] || {[delayed_message_exchange, Key|_], _} <- maps:to_list(Es)],
+    route_messages(Keys, State),
     Ref = erlang:send_after(?Timeout, self(), check_msgs),
     {noreply, State#state{timer = Ref}};
 handle_info(_I, State) ->
@@ -169,15 +170,26 @@ code_change(_, State, _) -> {ok, State}.
 %%             %% nothing to do
 %%             not_set
 %%     end.
-route(#delay_key{exchange = Ex}, Deliveries, State) ->
+route_messages([], State) ->
+    State;
+route_messages([Key|Keys], #state{kv_store = KVStore} = State) ->
+    {ok, Exchange} = rabbit_delayed_message_khepri:get(Key++[exchange]),
+    io:format(">>>KVStore ~p~nKey ~p~n",[KVStore, Key]),
+    [_, MsgKey] = Key,
+    {Msg, NewKVStore} = maps:take(MsgKey, KVStore),
+    route(Exchange, [Msg], State),
+    rabbit_delayed_message_khepri:delete(Key),
+    route_messages(Keys, State#state{kv_store = NewKVStore}).
+
+route(Ex, Deliveries, State) ->
     ExName = Ex#exchange.name,
-    lists:map(fun (#delay_entry{delivery = Msg0}) ->
+    lists:map(fun (Msg0) ->
                       Msg1 = case Msg0 of
-                               #delivery{message = BasicMessage} ->
+                                 #delivery{message = BasicMessage} ->
                                      BasicMessage;
-                               _MC ->
-                                   Msg0
-                           end,
+                                 _MC ->
+                                     Msg0
+                             end,
                       Msg2 = swap_delay_header(Msg1),
                       Dests = rabbit_exchange:route(Ex, Msg2),
                       Qs = rabbit_amqqueue:lookup_many(Dests),
@@ -185,7 +197,7 @@ route(#delay_key{exchange = Ex}, Deliveries, State) ->
                       bump_routed_stats(ExName, Qs, State)
               end, Deliveries).
 
-internal_delay_message(_CurrTimer, Exchange, _Message, Delay) ->
+internal_delay_message(KVStore, Exchange, Message, Delay) ->
     Now = erlang:system_time(milli_seconds),
     %% keys are timestamps in milliseconds,in the future
     DelayTS = Now + Delay,
@@ -194,7 +206,9 @@ internal_delay_message(_CurrTimer, Exchange, _Message, Delay) ->
     %% mnesia:dirty_write(?TABLE_NAME,
     %%                    make_delay(DelayTS, Exchange, Message)),
     Key = make_key(DelayTS, Exchange),
-    rabbit_delayed_message_khepri:put([Key], DelayTS).
+    rabbit_delayed_message_khepri:put([delayed_message_exchange, Key, delivery_time], DelayTS),
+    rabbit_delayed_message_khepri:put([delayed_message_exchange, Key, exchange], Exchange),
+    {ok, KVStore#{Key => Message}}.
     %%Store the actual msg with same key.
 
 
@@ -233,8 +247,10 @@ internal_delay_message(_CurrTimer, Exchange, _Message, Delay) ->
 %%                  const = true}.
 
 make_key(DelayTS, Exchange) ->
+    %% TODO: make unique, or store more than one msg/exchange data with the key.
     BinDelayTS = integer_to_binary(DelayTS),
-    <<Exchange/binary, BinDelayTS>>.
+    ExchangeName = Exchange#exchange.name#resource.name,
+    <<ExchangeName/binary, BinDelayTS/binary>>.
 
 append_to_atom(Atom, Append) when is_atom(Append) ->
     append_to_atom(Atom, atom_to_list(Append));
