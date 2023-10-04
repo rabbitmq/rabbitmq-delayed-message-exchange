@@ -3,6 +3,8 @@ amqp10_common:
 - amqp10_binary_parser
 - amqp10_framing
 - amqp10_framing0
+app:
+- appup_src
 aten:
 - aten
 - aten_app
@@ -11,6 +13,76 @@ aten:
 - aten_emitter
 - aten_sink
 - aten_sup
+bazdep:
+- bazdep
+bbmustache:
+- bbmustache
+check_undefined_test:
+- check_undefined_test_app
+- check_undefined_test_sup
+chunked_hello_world:
+- chunked_hello_world_app
+- chunked_hello_world_sup
+- toppage_h
+codepath:
+- codepath
+compress_response:
+- compress_response_app
+- compress_response_sup
+- toppage_h
+cookie:
+- cookie_app
+- cookie_sup
+- toppage_h
+cover:
+- foo
+cowboy:
+- cowboy
+- cowboy_app
+- cowboy_bstr
+- cowboy_children
+- cowboy_clear
+- cowboy_clock
+- cowboy_compress_h
+- cowboy_constraints
+- cowboy_handler
+- cowboy_http
+- cowboy_http2
+- cowboy_loop
+- cowboy_metrics_h
+- cowboy_middleware
+- cowboy_req
+- cowboy_rest
+- cowboy_router
+- cowboy_static
+- cowboy_stream
+- cowboy_stream_h
+- cowboy_sub_protocol
+- cowboy_sup
+- cowboy_tls
+- cowboy_tracer_h
+- cowboy_websocket
+cowlib:
+- cow_base64url
+- cow_cookie
+- cow_date
+- cow_hpack
+- cow_http
+- cow_http2
+- cow_http2_machine
+- cow_http_hd
+- cow_http_struct_hd
+- cow_http_te
+- cow_iolists
+- cow_link
+- cow_mimetypes
+- cow_multipart
+- cow_qs
+- cow_spdy
+- cow_sse
+- cow_uri
+- cow_uri_template
+- cow_ws
 credentials_obfuscation:
 - credentials_obfuscation
 - credentials_obfuscation_app
@@ -41,12 +113,103 @@ cuttlefish:
 - cuttlefish_validator
 - cuttlefish_variable
 - cuttlefish_vmargs
+dummy:
+- dummy_app
+- dummy_server
+- dummy_sup
+echo_get:
+- echo_get_app
+- echo_get_sup
+- toppage_h
+echo_post:
+- echo_post_app
+- echo_post_sup
+- toppage_h
 enough:
 - enough
+erlc:
+- first_erl
+- foo
+- foo_app
+- foo_test_worker
+- foo_worker
+eunit:
+- foo
+eunit_surefire:
+- foo
+eventsource:
+- eventsource_app
+- eventsource_h
+- eventsource_sup
+extended_script_tests:
+- extended_script_tests
+extension_tests:
+- extension_tests
+file_server:
+- directory_h
+- directory_lister
+- file_server_app
+- file_server_sup
+foo:
+- java
+- lisp
+- pascal
+- perl
+foodep:
+- foodep
+force_nodetool_tests:
+- force_nodetool_tests_app
+- force_nodetool_tests_sup
 gen_batch_server:
 - gen_batch_server
 getopt:
 - getopt
+gpb:
+- gpb
+- gpb_compile
+hello_world:
+- hello_world_app
+- hello_world_sup
+- toppage_h
+hooks_tests:
+- hooks_tests
+horus:
+- horus
+- horus_cover
+- horus_utils
+katana_code:
+- ktn_code
+- ktn_dodger
+- ktn_io_string
+khepri:
+- khepri
+- khepri_adv
+- khepri_app
+- khepri_cluster
+- khepri_condition
+- khepri_event_handler
+- khepri_evf
+- khepri_export_erlang
+- khepri_import_export
+- khepri_machine
+- khepri_path
+- khepri_pattern_tree
+- khepri_payload
+- khepri_projection
+- khepri_sproc
+- khepri_sup
+- khepri_tree
+- khepri_tx
+- khepri_tx_adv
+- khepri_utils
+markdown_middleware:
+- erlmarkdown
+- markdown_converter
+- markdown_middleware_app
+- markdown_middleware_sup
+neotoma:
+- neotoma
+- neotoma_parse
 observer_cli:
 - observer_cli
 - observer_cli_application
@@ -79,6 +242,23 @@ osiris:
 - osiris_tracking
 - osiris_util
 - osiris_writer
+overlay_error_test:
+- overlay_error_test_app
+- overlay_error_test_sup
+powershell_release:
+- powershell_release_app
+- powershell_release_sup
+proto_gpb:
+- foo
+- foo_app
+- foo_sup
+proto_protobuffs:
+- foo
+- foo_app
+- foo_sup
+protobuffs:
+- protobuffs
+- protobuffs_compile
 ra:
 - ra
 - ra_app
@@ -118,6 +298,11 @@ ra:
 - ra_system
 - ra_system_sup
 - ra_systems_sup
+ra_kv_store:
+- ra_kv_store
+- ra_kv_store_app
+- ra_kv_store_handler
+- ra_kv_store_sup
 rabbit:
 - amqqueue
 - background_gc
@@ -398,6 +583,8 @@ rabbitmq_delayed_message_exchange:
 - rabbit_delayed_message
 - rabbit_delayed_message_app
 - rabbit_delayed_message_khepri
+- rabbit_delayed_message_kv_store
+- rabbit_delayed_message_machine
 - rabbit_delayed_message_sup
 - rabbit_delayed_message_utils
 - rabbit_exchange_type_delayed_message
@@ -438,6 +625,60 @@ ranch:
 - ranch_sup
 - ranch_tcp
 - ranch_transport
+rebar:
+- rebar
+- rebar_abnfc_compiler
+- rebar_app_utils
+- rebar_appups
+- rebar_asn1_compiler
+- rebar_base_compiler
+- rebar_cleaner
+- rebar_config
+- rebar_core
+- rebar_cover_utils
+- rebar_ct
+- rebar_deps
+- rebar_dia_compiler
+- rebar_dialyzer
+- rebar_edoc
+- rebar_erlc_compiler
+- rebar_erlydtl_compiler
+- rebar_escripter
+- rebar_eunit
+- rebar_file_utils
+- rebar_getopt
+- rebar_lfe_compiler
+- rebar_log
+- rebar_metacmds
+- rebar_mustache
+- rebar_neotoma_compiler
+- rebar_otp_app
+- rebar_otp_appup
+- rebar_port_compiler
+- rebar_proto_compiler
+- rebar_proto_gpb_compiler
+- rebar_protobuffs_compiler
+- rebar_qc
+- rebar_rand_compat
+- rebar_rel_utils
+- rebar_reltool
+- rebar_require_vsn
+- rebar_shell
+- rebar_subdirs
+- rebar_templater
+- rebar_upgrade
+- rebar_utils
+- rebar_xref
+- rmemo
+rebar3_format:
+- default_formatter
+- erlfmt_formatter
+- otp_formatter
+- rebar3_ast_formatter
+- rebar3_format
+- rebar3_format_prv
+- rebar3_formatter
+- sr_formatter
 recon:
 - recon
 - recon_alloc
@@ -452,11 +693,47 @@ redbug:
 - redbug_lexer
 - redbug_parser
 - redbug_targ
+relx:
+- relx
+- rlx_app_info
+- rlx_assemble
+- rlx_config
+- rlx_file_utils
+- rlx_log
+- rlx_overlay
+- rlx_release
+- rlx_relup
+- rlx_resolve
+- rlx_state
+- rlx_string
+- rlx_tar
+- rlx_util
+replace_os_vars_tests:
+- replace_os_vars_tests
+rest_basic_auth:
+- rest_basic_auth_app
+- rest_basic_auth_sup
+- toppage_h
+rest_hello_world:
+- rest_hello_world_app
+- rest_hello_world_sup
+- toppage_h
+rest_pastebin:
+- rest_pastebin_app
+- rest_pastebin_sup
+- toppage_h
 seshat:
 - seshat
 - seshat_app
 - seshat_counters_server
 - seshat_sup
+shellcheck_test:
+- shellcheck_test_app
+- shellcheck_test_sup
+ssl_hello_world:
+- ssl_hello_world_app
+- ssl_hello_world_sup
+- toppage_h
 stdout_formatter:
 - stdout_formatter
 - stdout_formatter_paragraph
@@ -478,6 +755,9 @@ sysmon_handler:
 - sysmon_handler_filter
 - sysmon_handler_sup
 - sysmon_handler_testhandler
+system_libs_tests:
+- system_libs_tests_app
+- system_libs_tests_sup
 systemd:
 - systemd
 - systemd_app
@@ -487,7 +767,30 @@ systemd:
 - systemd_socket
 - systemd_sup
 - systemd_watchdog
+tcp_echo:
+- echo_protocol
+- tcp_echo_app
+- tcp_echo_sup
+tcp_reverse:
+- reverse_protocol
+- tcp_reverse_app
+- tcp_reverse_sup
 thoas:
 - thoas
 - thoas_decode
 - thoas_encode
+unuseddep:
+- unuseddep
+upgrade_test:
+- upgrade_test_app
+- upgrade_test_sup
+upload:
+- upload_app
+- upload_h
+- upload_sup
+vm_args_inclusion_tests:
+- vm_args_inclusion_tests
+websocket:
+- websocket_app
+- websocket_sup
+- ws_h

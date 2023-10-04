@@ -107,6 +107,7 @@ erlang_app(
     license_files = [":license_files"],
     priv = [":priv"],
     deps = [
+        "@khepri//:erlang_app",
         "@ra//:erlang_app",
         "@rabbitmq-server//deps/rabbit:erlang_app",
         "@rabbitmq-server//deps/rabbit_common:erlang_app",
@@ -128,6 +129,7 @@ test_erlang_app(
     license_files = [":license_files"],
     priv = [":priv"],
     deps = [
+        "@khepri//:erlang_app",
         "@ra//:erlang_app",
         "@rabbitmq-server//deps/rabbit:erlang_app",
         "@rabbitmq-server//deps/rabbit_common:erlang_app",

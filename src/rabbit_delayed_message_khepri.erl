@@ -18,9 +18,11 @@
 -include_lib("rabbit_common/include/logging.hrl").
 
 -export([setup/0,
+         get_store_id/0,
          put/2,
          delete/1,
          get/1,
+         match/1,
          get_many/1]).
 
 -define(RA_SYSTEM, dmx_coordination).
@@ -40,6 +42,9 @@ setup() ->
         {error, _} = Error ->
             exit(Error)
     end.
+
+get_store_id() ->
+    ?STORE_ID.
 
 ensure_ra_system_started(RaSystem) ->
     RaSystemConfig = get_config(RaSystem),
@@ -124,4 +129,7 @@ delete(PathPattern) ->
     khepri:delete(?STORE_ID, PathPattern).
 
 get_many(PathPattern) ->
+    khepri:get_many(?STORE_ID, PathPattern).
+
+match(PathPattern) ->
     khepri:get_many(?STORE_ID, PathPattern).
