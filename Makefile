@@ -15,8 +15,10 @@ dep_rabbitmq_ct_client_helpers = git_rmq-subfolder rabbitmq-ct-client-helpers $(
 dep_rabbitmq_ct_helpers        = git_rmq-subfolder rabbitmq-ct-helpers $(RABBITMQ_VERSION)
 
 dep_khepri = git https://github.com/rabbitmq/khepri.git main
+dep_leveldb = git git@github.com:martinsumner/leveled.git
+dep_leveldb = git git@github.com:martinsumner/erlang-lz4.git
 
-DEPS = rabbit_common rabbit khepri
+DEPS = rabbit_common rabbit khepri leveldb lz4
 TEST_DEPS = ct_helper rabbitmq_ct_helpers rabbitmq_ct_client_helpers amqp_client
 dep_ct_helper = git https://github.com/extend/ct_helper.git master
 

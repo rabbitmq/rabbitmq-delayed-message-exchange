@@ -20,20 +20,21 @@
 -export([setup/0, maybe_make_cluster/0, maybe_resize_cluster/0]).
 
 -export([
-         write/2,
-         take/1
+         write/3,
+         take/2
          ]).
 
 -define(RA_SYSTEM, delayed_message_exchange).
 
-write(Key, Value) ->
+write(Ref, Key, Value) ->
     rabbit_delayed_message_machine:write({?MODULE, node()},
+                                         Ref,
                                          Key,
                                          Value).
 
-take(Key) ->
+take(Ref, Key) ->
     rabbit_delayed_message_machine:take({?MODULE, node()},
-                                        Key).
+                                        Ref, Key).
 
 
 setup() ->
@@ -180,4 +181,3 @@ get_config(RaSystem) ->
 
 get_default_config() ->
     ra_system:default_config().
-

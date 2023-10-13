@@ -22,12 +22,12 @@
 
 -export([init/1,
          apply/3,
-         write/3,
-         take/2,
+         write/4,
+         take/3,
          read/2]).
 
-write(ServerReference, Key, Value) ->
-    Cmd = {write, Key, Value},
+write(ServerReference, Ref, Key, Value) ->
+    Cmd = {write, Ref, Key, Value},
     case ra:process_command(ServerReference, Cmd) of
         {ok, _, _} ->
             ok;
@@ -35,8 +35,8 @@ write(ServerReference, Key, Value) ->
             timeout
     end.
 
-take(ServerReference, Key) ->
-    Cmd = {take, Key},
+take(ServerReference, Ref, Key) ->
+    Cmd = {take, Ref, Key},
     case ra:process_command(ServerReference, Cmd) of
         {ok, V, _} ->
             {ok, V};
@@ -63,12 +63,13 @@ init(_Config) ->
     #state{}.
 
 apply(_Metadata,
-      {write, Key, Value}, #state{store = Store0} = State0) ->
-    Store1 = maps:put(Key, Value, Store0),
-    State1 = State0#state{store = Store1},
-    {State1, ok, []};
+      {write, Ref, Key, Value}, State) ->
+    rabbit_log:debug("Before ~n",[]),
+    spawn(fun() -> R = leveled_bookie:book_put(Ref, "foo", Key, Value, []),
+                   rabbit_log:debug("Ref ~p~nKey~p~nValue~p~nresult ~p", [Ref, Key, Value, R])
+          end),
+    {State, ok, []};
 apply(_Metadata,
-      {take, Key}, #state{store = Store0} = State0) ->
-    {Value, Store1} = maps:take(Key, Store0),
-    State1 = State0#state{store = Store1},
-    {State1, Value, []}.
+      {take, Ref, Key}, State) ->
+    spawn(fun() -> leveled_bookie:book_delete(Ref, "foo", Key, []) end),
+    {State, ok, []}.

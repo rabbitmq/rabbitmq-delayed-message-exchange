@@ -18,22 +18,20 @@
 
 -rabbit_boot_step({?MODULE,
                    [{description, "exchange delayed message mnesia setup"},
-                    {mfa, {?MODULE, setup_khepri, []}},
+                    {mfa, {?MODULE, setup, []}},
                     {cleanup, {?MODULE, disable_plugin, []}},
                     {requires, external_infrastructure},
                     {enables, rabbit_registry}]}).
 
 -behaviour(gen_server).
 
--export([start_link/0, delay_message/3, setup_khepri/0, disable_plugin/0, go/0]).
+-export([start_link/0, delay_message/3, setup/0, disable_plugin/0, go/0]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
          code_change/3]).
--export([messages_delayed/1, route/3]).
+-export([messages_delayed/1, route/3, get_kv_ref/0]).
 
 %% For testing, debugging and manual use
 -export([refresh_config/0]).
-
--import(rabbit_delayed_message_utils, [swap_delay_header/1]).
 
 -type t_reference() :: reference().
 -type delay() :: non_neg_integer().
@@ -54,6 +52,7 @@
 
 -record(state, {timer,
                 khepri_mod,
+                kv_store_pid,
                 stats_state}).
 
 %%--------------------------------------------------------------------
@@ -68,7 +67,7 @@ delay_message(Exchange, Message, Delay) ->
     gen_server:call(?MODULE, {delay_message, Exchange, Message, Delay},
                     infinity).
 
-setup_khepri() ->
+setup() ->
     rabbit_delayed_message_kv_store:setup(),
     ok.
 
@@ -86,12 +85,18 @@ messages_delayed(_Exchange) ->
 refresh_config() ->
     gen_server:call(?MODULE, refresh_config).
 
+get_kv_ref() ->
+    gen_server:call(?MODULE, get_kv_ref).
+
 %%--------------------------------------------------------------------
 
 init([]) ->
     _ = recover(),
     {ok, #state{}}.
 
+handle_call(get_kv_ref,
+            _From, #state{kv_store_pid = KVPid} = State) ->
+    {reply, KVPid, State};
 handle_call({delay_message, Exchange, Message, Delay},
             _From, State) ->
     ok = internal_delay_message(State, Exchange, Message, Delay),
@@ -103,8 +108,12 @@ handle_call(_Req, _From, State) ->
 
 handle_cast(go, State) ->
     State2 = refresh_config(State),
+    DataDir = filename:join(
+                [rabbit:data_dir(), "dmx", node()]),
+    {ok, Bookie} = leveled_bookie:book_start([{root_path, DataDir},
+                                              {log_level, error}]),
     Ref = erlang:send_after(?Timeout, self(), check_msgs),
-    {noreply, State2#state{timer = Ref}};
+    {noreply, State2#state{timer = Ref, kv_store_pid = Bookie}};
 handle_cast(_C, State) ->
     {noreply, State}.
 
@@ -143,10 +152,11 @@ code_change(_, State, _) -> {ok, State}.
 
 route_messages([], State) ->
     State;
-route_messages([Key|Keys], #state{khepri_mod = Mod} = State) ->
+route_messages([Key|Keys], #state{khepri_mod = Mod, kv_store_pid = Ref} = State) ->
     {ok, Exchange} = Mod:get(Key++[exchange]),
     [_, MsgKey] = Key,
-    {ok, V} = rabbit_delayed_message_kv_store:take(MsgKey),
+    {ok, V} = leveled_bookie:book_get(Ref, "foo", MsgKey),
+    rabbit_delayed_message_kv_store:take(Ref, MsgKey),
     route(Exchange, [V], State),
     Mod:delete(Key),
     route_messages(Keys, State).
@@ -160,20 +170,20 @@ route(Ex, Deliveries, State) ->
                                  _MC ->
                                      Msg0
                              end,
-                      Msg2 = swap_delay_header(Msg1),
+                      Msg2 = rabbit_delayed_message_utils:swap_delay_header(Msg1),
                       Dests = rabbit_exchange:route(Ex, Msg2),
                       Qs = rabbit_amqqueue:lookup_many(Dests),
                       _ = rabbit_queue_type:deliver(Qs, Msg2, #{}, stateless),
                       bump_routed_stats(ExName, Qs, State)
               end, Deliveries).
 
-internal_delay_message(#state{khepri_mod = Mod}, Exchange, Message, Delay) ->
+internal_delay_message(#state{khepri_mod = Mod, kv_store_pid = Ref}, Exchange, Message, Delay) ->
     Now = erlang:system_time(milli_seconds),
     DelayTS = Now + Delay,
     Key = make_key(DelayTS, Exchange),
     Mod:put([delayed_message_exchange, Key, delivery_time], DelayTS),
     Mod:put([delayed_message_exchange, Key, exchange], Exchange),
-    ok = rabbit_delayed_message_kv_store:write(Key, Message).
+    ok = rabbit_delayed_message_kv_store:write(Ref, Key, Message).
 
 
 make_key(DelayTS, Exchange) ->
