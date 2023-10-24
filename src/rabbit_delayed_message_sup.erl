@@ -32,6 +32,8 @@ init([]) ->
           [{rabbit_delayed_message, {rabbit_delayed_message, start_link, []},
             transient, ?WORKER_WAIT, worker, [rabbit_delayed_message]},
            {rabbit_delayed_message_kv_store, {rabbit_delayed_message_kv_store, start_link, []},
+            transient, ?WORKER_WAIT, worker, [rabbit_delayed_message_kv_store]},
+           {rabbit_leveled_bookie, {rabbit_delayed_message_kv_store, leveled_bookie_start_link, []},
             transient, ?WORKER_WAIT, worker, [rabbit_delayed_message_kv_store]}]}}.
 
 stop() ->

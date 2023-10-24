@@ -92,6 +92,7 @@ init([]) ->
 
 handle_call({delay_message, Exchange, Message, Delay},
             _From, State) ->
+    %% TODO perhaps write and read should be handled in different processes.
     ok = internal_delay_message(State, Exchange, Message, Delay),
     {reply, ok, State};
 handle_call(refresh_config, _From, State) ->
@@ -175,11 +176,14 @@ internal_delay_message(#state{khepri_mod = Mod}, Exchange, Message, Delay) ->
     ok = rabbit_delayed_message_kv_store:write(Key, Message).
 
 
-make_key(DelayTS, Exchange) ->
+make_key(_DelayTS, _Exchange) ->
     %% TODO: make unique, or store more than one msg/exchange data with the key.
-    BinDelayTS = integer_to_binary(DelayTS),
-    ExchangeName = Exchange#exchange.name#resource.name,
-    <<ExchangeName/binary, BinDelayTS/binary>>.
+    %% BinDelayTS = integer_to_binary(DelayTS),
+    %% ExchangeName = Exchange#exchange.name#resource.name,
+    %% <<ExchangeName/binary, BinDelayTS/binary>>.
+
+    %% TODO: Just a uuid for now. Any need to make the key actually matter?
+    rabbit_guid:gen().
 
 recover() ->
     %% topology recovery has already happened, we have to recover state for any durable

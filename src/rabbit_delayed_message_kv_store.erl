@@ -19,7 +19,7 @@
 
 -behaviour(gen_server).
 
--export([start_link/0]).
+-export([start_link/0, leveled_bookie_start_link/0]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
          code_change/3]).
 
@@ -200,12 +200,17 @@ get_default_config() ->
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
-init([]) ->
+
+leveled_bookie_start_link() ->
     DataDir = filename:join(
                 [rabbit:data_dir(), "dmx", node()]),
-    {ok, Bookie} = leveled_bookie:book_start([{root_path, DataDir},
-                                              {log_level, error}]),
-    {ok, #state{kv_store_pid = Bookie}}.
+    Result = {ok, Pid} = leveled_bookie:book_start([{root_path, DataDir},
+                                           {log_level, error}]),
+    register(rabbit_leveled_bookie, Pid),
+    Result.
+
+init([]) ->
+    {ok, #state{kv_store_pid = rabbit_leveled_bookie}}.
 
 
 do_write(Key, Value) ->
@@ -218,14 +223,14 @@ do_take(Key) ->
     gen_server:call(?MODULE, {take, Key}).
 
 handle_call({take, Key}, _From, #state{kv_store_pid = Ref} = State) ->
-    {ok, V} = leveled_bookie:book_get(Ref, "foo", Key),
+    {ok, V} = leveled_bookie:book_get(whereis(Ref), "foo", Key),
     {reply, V, State}.
 
 handle_cast({write, Key, Value}, #state{kv_store_pid = Ref} = State) ->
-    leveled_bookie:book_put(Ref, "foo", Key, Value, []),
+    leveled_bookie:book_put(whereis(Ref), "foo", Key, Value, []),
     {noreply, State};
 handle_cast({delete, Key}, #state{kv_store_pid = Ref} = State) ->
-    leveled_bookie:book_delete(Ref, "foo", Key, []),
+    leveled_bookie:book_delete(whereis(Ref), "foo", Key, []),
     {noreply, State}.
 
 handle_info(_I, State) ->
