@@ -30,7 +30,9 @@ start_link() ->
 init([]) ->
     {ok, {{one_for_one, 3, 10},
           [{rabbit_delayed_message, {rabbit_delayed_message, start_link, []},
-            transient, ?WORKER_WAIT, worker, [rabbit_delayed_message]}]}}.
+            transient, ?WORKER_WAIT, worker, [rabbit_delayed_message]},
+           {rabbit_delayed_message_kv_store, {rabbit_delayed_message_kv_store, start_link, []},
+            transient, ?WORKER_WAIT, worker, [rabbit_delayed_message_kv_store]}]}}.
 
 stop() ->
     ok = supervisor:terminate_child(rabbit_sup, ?MODULE),

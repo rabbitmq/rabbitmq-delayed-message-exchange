@@ -17,36 +17,49 @@
 -include_lib("kernel/include/logger.hrl").
 -include_lib("rabbit_common/include/logging.hrl").
 
+-behaviour(gen_server).
+
+-export([start_link/0]).
+-export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
+         code_change/3]).
+
+
 -export([setup/0, maybe_make_cluster/0, maybe_resize_cluster/0]).
 
 -export([
-         write/3,
-         take/2
+         write/2,
+         delete/1,
+         do_write/2,
+         do_delete/1,
+         do_take/1
          ]).
 
--define(RA_SYSTEM, delayed_message_exchange).
+-record(state, {kv_store_pid
+               }).
 
-write(Ref, Key, Value) ->
-    rabbit_delayed_message_machine:write({?MODULE, node()},
-                                         Ref,
+-define(RA_SYSTEM, delayed_message_exchange).
+-define(RA_CLUSTER_NAME, dmx_kv_cluster).
+
+write(Key, Value) ->
+    rabbit_delayed_message_machine:write({?RA_CLUSTER_NAME, node()},
                                          Key,
                                          Value).
 
-take(Ref, Key) ->
-    rabbit_delayed_message_machine:take({?MODULE, node()},
-                                        Ref, Key).
+delete(Key) ->
+    rabbit_delayed_message_machine:delete({?RA_CLUSTER_NAME, node()},
+                                          Key).
 
 
 setup() ->
     ok = ensure_ra_system_started(?RA_SYSTEM).
 
 maybe_make_cluster() ->
-    Local = {?MODULE, node()},
+    Local = {?RA_CLUSTER_NAME, node()},
     Nodes = rabbit_nodes:list_reachable(),
     %% This might be overkill?
-    case whereis(?MODULE) of
+    case whereis(?RA_CLUSTER_NAME) of
         undefined ->
-            global:set_lock({?MODULE, self()}),
+            global:set_lock({?RA_CLUSTER_NAME, self()}),
             case ra:restart_server(?RA_SYSTEM, Local) of
                 {error, Reason} when Reason == not_started orelse
                                      Reason == name_not_registered ->
@@ -54,7 +67,7 @@ maybe_make_cluster() ->
                     rabbit_log:debug(">>>> OTHER NODES ~p", [OtherNodes]),
                     case lists:filter(
                            fun(N) ->
-                                   erpc:call(N, erlang, whereis, [?MODULE]) =/= undefined
+                                   erpc:call(N, erlang, whereis, [?RA_CLUSTER_NAME]) =/= undefined
                            end, OtherNodes) of
                         [] ->
                             ra:start_cluster(?RA_SYSTEM, [make_ra_conf(Node, Nodes) || Node <-  Nodes]);
@@ -64,7 +77,7 @@ maybe_make_cluster() ->
                 _ ->
                     ok
             end,
-            global:del_lock({?MODULE, self()});
+            global:del_lock({?RA_CLUSTER_NAME, self()});
         _ ->
             maybe_resize_cluster(),
             ok
@@ -73,7 +86,7 @@ maybe_make_cluster() ->
 
 
 maybe_resize_cluster() ->
-    case ra:members({?MODULE, node()}) of
+    case ra:members({?RA_CLUSTER_NAME, node()}) of
         {_, Members, _} ->
             MemberNodes = [Node || {_, Node} <- Members],
             Running = rabbit_nodes:list_running(),
@@ -84,7 +97,7 @@ maybe_resize_cluster() ->
                 New ->
                     rabbit_log:info("~ts: New rabbit node(s) detected, "
                                     "adding : ~w",
-                                    [?MODULE, New]),
+                                    [?RA_CLUSTER_NAME, New]),
                     add_members(Members, New)
             end,
             case MemberNodes -- All of
@@ -92,7 +105,7 @@ maybe_resize_cluster() ->
                     ok;
                 Old ->
                     rabbit_log:info("~ts: Rabbit node(s) removed from the cluster, "
-                                    "deleting: ~w", [?MODULE, Old]),
+                                    "deleting: ~w", [?RA_CLUSTER_NAME, Old]),
                     remove_members(Members, Old)
             end;
         _ ->
@@ -105,7 +118,7 @@ add_members(Members, [Node | Nodes]) ->
     Conf = make_ra_conf(Node, [N || {_, N} <- Members]),
     case ra:start_server(?RA_SYSTEM, Conf) of
         ok ->
-            case ra:add_member(Members, {?MODULE, Node}) of
+            case ra:add_member(Members, {?RA_CLUSTER_NAME, Node}) of
                 {ok, NewMembers, _} ->
                     add_members(NewMembers, Nodes);
                 _ ->
@@ -120,7 +133,7 @@ add_members(Members, [Node | Nodes]) ->
 remove_members(_, []) ->
     ok;
 remove_members(Members, [Node | Nodes]) ->
-    case ra:remove_member(Members, {?MODULE, Node}) of
+    case ra:remove_member(Members, {?RA_CLUSTER_NAME, Node}) of
         {ok, NewMembers, _} ->
             remove_members(NewMembers, Nodes);
         _ ->
@@ -129,12 +142,12 @@ remove_members(Members, [Node | Nodes]) ->
 
 
 make_ra_conf(Node, Nodes) ->
-    UId = ra:new_uid(ra_lib:to_binary(?MODULE)),
-    Members = [{?MODULE, N} || N <- Nodes],
-    #{cluster_name => ?MODULE,
-      id => {?MODULE, Node},
+    UId = ra:new_uid(ra_lib:to_binary(?RA_CLUSTER_NAME)),
+    Members = [{?RA_CLUSTER_NAME, N} || N <- Nodes],
+    #{cluster_name => ?RA_CLUSTER_NAME,
+      id => {?RA_CLUSTER_NAME, Node},
       uid => UId,
-      friendly_name => atom_to_list(?MODULE),
+      friendly_name => atom_to_list(?RA_CLUSTER_NAME),
       initial_members => Members,
       log_init_args => #{uid => UId},
       machine => {module, rabbit_delayed_message_machine, #{}}
@@ -181,3 +194,44 @@ get_config(RaSystem) ->
 
 get_default_config() ->
     ra_system:default_config().
+
+
+
+start_link() ->
+    gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+
+init([]) ->
+    DataDir = filename:join(
+                [rabbit:data_dir(), "dmx", node()]),
+    {ok, Bookie} = leveled_bookie:book_start([{root_path, DataDir},
+                                              {log_level, error}]),
+    {ok, #state{kv_store_pid = Bookie}}.
+
+
+do_write(Key, Value) ->
+    gen_server:cast(?MODULE, {write, Key, Value}).
+
+do_delete(Key) ->
+    gen_server:cast(?MODULE, {delete, Key}).
+
+do_take(Key) ->
+    gen_server:call(?MODULE, {take, Key}).
+
+handle_call({take, Key}, _From, #state{kv_store_pid = Ref} = State) ->
+    {ok, V} = leveled_bookie:book_get(Ref, "foo", Key),
+    {reply, V, State}.
+
+handle_cast({write, Key, Value}, #state{kv_store_pid = Ref} = State) ->
+    leveled_bookie:book_put(Ref, "foo", Key, Value, []),
+    {noreply, State};
+handle_cast({delete, Key}, #state{kv_store_pid = Ref} = State) ->
+    leveled_bookie:book_delete(Ref, "foo", Key, []),
+    {noreply, State}.
+
+handle_info(_I, State) ->
+    {noreply, State}.
+
+terminate(_, _) ->
+    ok.
+
+code_change(_, State, _) -> {ok, State}.

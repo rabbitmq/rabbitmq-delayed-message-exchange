@@ -22,12 +22,12 @@
 
 -export([init/1,
          apply/3,
-         write/4,
-         take/3,
+         write/3,
+         delete/2,
          read/2]).
 
-write(ServerReference, Ref, Key, Value) ->
-    Cmd = {write, Ref, Key, Value},
+write(ServerReference, Key, Value) ->
+    Cmd = {write, Key, Value},
     case ra:process_command(ServerReference, Cmd) of
         {ok, _, _} ->
             ok;
@@ -35,8 +35,8 @@ write(ServerReference, Ref, Key, Value) ->
             timeout
     end.
 
-take(ServerReference, Ref, Key) ->
-    Cmd = {take, Ref, Key},
+delete(ServerReference, Key) ->
+    Cmd = {delete, Key},
     case ra:process_command(ServerReference, Cmd) of
         {ok, V, _} ->
             {ok, V};
@@ -63,13 +63,10 @@ init(_Config) ->
     #state{}.
 
 apply(_Metadata,
-      {write, Ref, Key, Value}, State) ->
-    rabbit_log:debug("Before ~n",[]),
-    spawn(fun() -> R = leveled_bookie:book_put(Ref, "foo", Key, Value, []),
-                   rabbit_log:debug("Ref ~p~nKey~p~nValue~p~nresult ~p", [Ref, Key, Value, R])
-          end),
+      {write, Key, Value}, State) ->
+    rabbit_delayed_message_kv_store:do_write(Key, Value),
     {State, ok, []};
 apply(_Metadata,
-      {take, Ref, Key}, State) ->
-    spawn(fun() -> leveled_bookie:book_delete(Ref, "foo", Key, []) end),
+      {delete, Key}, State) ->
+    rabbit_delayed_message_kv_store:do_delete(Key),
     {State, ok, []}.
