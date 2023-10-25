@@ -60,13 +60,13 @@ read(ServerReference, Key) ->
     end.
 
 init(_Config) ->
-    #state{}.
+    sets:new({version, 2}).
 
 apply(_Metadata,
       {write, Key, Value}, State) ->
     rabbit_delayed_message_kv_store:do_write(Key, Value),
-    {State, ok, []};
+    {sets:add_element(Key, State), ok, []};
 apply(_Metadata,
       {delete, Key}, State) ->
     rabbit_delayed_message_kv_store:do_delete(Key),
-    {State, ok, []}.
+    {sets:del_element(Key, State), ok, []}.
