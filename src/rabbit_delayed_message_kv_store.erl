@@ -34,8 +34,10 @@
          do_take/1
          ]).
 
--record(state, {kv_store_pid
-               }).
+-record(state,
+        {kv_store_pid,
+         connection
+        }).
 
 -define(RA_SYSTEM, delayed_message_exchange).
 -define(RA_CLUSTER_NAME, dmx_kv_cluster).
@@ -51,7 +53,16 @@ delete(Key) ->
 
 
 setup() ->
-    ok = ensure_ra_system_started(?RA_SYSTEM).
+    %% create connection
+    %% create channel
+    %% create queue
+    ok = ensure_ra_system_started(?RA_SYSTEM),
+    QName = rabbit_misc:r(<<"/">>, queue, <<"internal-dmx-queue">>),
+    rabbit_amqqueue:declare(QName,
+                            true,
+                            false,
+                            [{<<"x-queue-type">>, longstr, <<"stream">>}],
+                            none, <<"dmx">>, node()).
 
 maybe_make_cluster() ->
     Local = {?RA_CLUSTER_NAME, node()},
@@ -64,7 +75,6 @@ maybe_make_cluster() ->
                 {error, Reason} when Reason == not_started orelse
                                      Reason == name_not_registered ->
                     OtherNodes = Nodes -- [node()],
-                    rabbit_log:debug(">>>> OTHER NODES ~p", [OtherNodes]),
                     case lists:filter(
                            fun(N) ->
                                    erpc:call(N, erlang, whereis, [?RA_CLUSTER_NAME]) =/= undefined
@@ -205,7 +215,7 @@ leveled_bookie_start_link() ->
     DataDir = filename:join(
                 [rabbit:data_dir(), "dmx", node()]),
     Result = {ok, Pid} = leveled_bookie:book_start([{root_path, DataDir},
-                                           {log_level, error}]),
+                                                    {log_level, error}]),
     register(rabbit_leveled_bookie, Pid),
     Result.
 

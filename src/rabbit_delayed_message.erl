@@ -20,8 +20,9 @@
                    [{description, "exchange delayed message mnesia setup"},
                     {mfa, {?MODULE, setup, []}},
                     {cleanup, {?MODULE, disable_plugin, []}},
-                    {requires, external_infrastructure},
-                    {enables, rabbit_registry}]}).
+                    {requires,    recovery}]}).
+                    %% {requires, external_infrastructure},
+                    %% {enables, rabbit_registry}]}).
 
 -behaviour(gen_server).
 

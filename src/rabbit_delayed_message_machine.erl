@@ -60,7 +60,7 @@ read(ServerReference, Key) ->
     end.
 
 init(_Config) ->
-    sets:new({version, 2}).
+    sets:new([{version, 2}]).
 
 apply(_Metadata,
       {write, Key, Value}, State) ->
