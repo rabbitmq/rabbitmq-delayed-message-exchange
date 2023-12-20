@@ -56,13 +56,7 @@ setup() ->
     %% create connection
     %% create channel
     %% create queue
-    ok = ensure_ra_system_started(?RA_SYSTEM),
-    QName = rabbit_misc:r(<<"/">>, queue, <<"internal-dmx-queue">>),
-    rabbit_amqqueue:declare(QName,
-                            true,
-                            false,
-                            [{<<"x-queue-type">>, longstr, <<"stream">>}],
-                            none, <<"dmx">>, node()).
+    ok = ensure_ra_system_started(?RA_SYSTEM).
 
 maybe_make_cluster() ->
     Local = {?RA_CLUSTER_NAME, node()},
@@ -80,7 +74,13 @@ maybe_make_cluster() ->
                                    erpc:call(N, erlang, whereis, [?RA_CLUSTER_NAME]) =/= undefined
                            end, OtherNodes) of
                         [] ->
-                            ra:start_cluster(?RA_SYSTEM, [make_ra_conf(Node, Nodes) || Node <-  Nodes]);
+                            ra:start_cluster(?RA_SYSTEM, [make_ra_conf(Node, Nodes) || Node <-  Nodes]),
+                            QName = rabbit_misc:r(<<"/">>, queue, <<"internal-dmx-queue">>),
+                            rabbit_amqqueue:declare(QName,
+                                                    true,
+                                                    false,
+                                                    [{<<"x-queue-type">>, longstr, <<"stream">>}],
+                                                    none, <<"dmx">>, node());
                         _ ->
                             ok
                     end;
@@ -128,6 +128,8 @@ add_members(Members, [Node | Nodes]) ->
     Conf = make_ra_conf(Node, [N || {_, N} <- Members]),
     case ra:start_server(?RA_SYSTEM, Conf) of
         ok ->
+            R = rabbit_stream_queue:add_replica(<<"/">>, <<"internal-dmx-queue">>, Node),
+            rabbit_log:debug(">>> add replica deubg resutl ~p", [R]),
             case ra:add_member(Members, {?RA_CLUSTER_NAME, Node}) of
                 {ok, NewMembers, _} ->
                     add_members(NewMembers, Nodes);

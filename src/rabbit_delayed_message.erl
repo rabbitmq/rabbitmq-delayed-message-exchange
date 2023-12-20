@@ -147,13 +147,14 @@ route_messages([Key|Keys], #state{khepri_mod = Mod} = State) ->
     {ok, Exchange} = Mod:get(Key++[exchange]),
     [_, MsgKey] = Key,
     V = rabbit_delayed_message_kv_store:do_take(MsgKey),
-    rabbit_delayed_message_kv_store:delete(MsgKey),
     route(Exchange, [V], State),
+    rabbit_delayed_message_kv_store:delete(MsgKey),
     Mod:delete(Key),
     route_messages(Keys, State).
 
 route(Ex, Deliveries, State) ->
     ExName = Ex#exchange.name,
+    rabbit_log:debug(">>> Delayed message exchange:~nEX:~n~pDevs:~n~p",[Ex, Deliveries]),
     lists:map(fun (Msg0) ->
                       Msg1 = case Msg0 of
                                  #delivery{message = BasicMessage} ->
@@ -174,6 +175,11 @@ internal_delay_message(#state{khepri_mod = Mod}, Exchange, Message, Delay) ->
     Key = make_key(DelayTS, Exchange),
     Mod:put([delayed_message_exchange, Key, delivery_time], DelayTS),
     Mod:put([delayed_message_exchange, Key, exchange], Exchange),
+    Dests = [#resource{virtual_host = <<"/">>,kind = queue,
+                       name = <<"internal-dmx-queue">>}],
+    Qs = rabbit_amqqueue:lookup_many(Dests),
+    MsgWithKey = mc:set_annotation(<<"x-delay-key">>, Key, Message),
+    _ = rabbit_queue_type:deliver(Qs, MsgWithKey, #{}, stateless),
     ok = rabbit_delayed_message_kv_store:write(Key, Message).
 
 
@@ -221,7 +227,7 @@ recover_exchange_and_bindings(#exchange{name = XName} = X) ->
     mnesia:transaction(
         fun () ->
             Bindings = rabbit_binding:list_for_source(XName),
-            _ = [rabbit_exchange_type_delayed_message:add_binding(transaction, X, B)
+                _ = [rabbit_exchange_type_delayed_message:add_binding(transaction, X, B)
                  || B <- lists:usort(Bindings)],
             rabbit_log:debug("Delayed message exchange: "
                               "recovered bindings for ~s",
