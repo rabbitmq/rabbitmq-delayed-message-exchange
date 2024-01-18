@@ -91,7 +91,33 @@ handle_queue_event({queue_event, QName, Evt}, State0 = #state{queue_type = QType
 
 handle_queue_actions(Actions, State) ->
     rabbit_log:debug(">>> handle actions ~p", [Actions]),
-    State.
+    lists:foldl(
+      fun ({deliver, ?CONSUMER_TAG, Ack, Msgs}, S) ->
+              read_msgs(Msgs, Ack, S);
+          ({settled, _QName, PktIds}, S) ->
+              S;
+          ({rejected, _QName, PktIds}, S) ->
+              S;
+          ({block, _QName}, S) ->
+              S;
+          ({unblock, _QName}, S) ->
+              S;
+          ({queue_down, _QName}, S) ->
+              S
+      end, State, Actions).
+
+read_msgs(Msgs, Ack, S) ->
+    lists:foldl(fun(Msg, S = #state{queue_type = QType}) ->
+                        read_msg(Msg, Ack, S)
+                end, State, Msgs).
+
+
+read_msg({QNameOrType, QPid, QMsgId, _Redelivered, Mc} = _Delivery,
+         Ack, S = #state{queue_type = QType}) ->
+    {ok, QType0, Actions} =
+        rabbit_queue_type:settle(QNameOrType, none, <<"foobar">>, [QMsgId], QType).
+    S#state{queue_type = QType0}.
+
 
 %% {ok, QueueType} = rabbit_queue_type:init().
 %% QN = #resource{virtual_host = <<"/">>,kind = queue,
