@@ -92,11 +92,11 @@ handle_queue_event({queue_event, QName, Evt}, State0 = #state{queue_type = QType
 handle_queue_actions(Actions, State) ->
     rabbit_log:debug(">>> handle actions ~p", [Actions]),
     lists:foldl(
-      fun ({deliver, ?CONSUMER_TAG, Ack, Msgs}, S) ->
+      fun ({deliver, _Tag, Ack, Msgs}, S) ->
               read_msgs(Msgs, Ack, S);
-          ({settled, _QName, PktIds}, S) ->
+          ({settled, _QName, _PktIds}, S) ->
               S;
-          ({rejected, _QName, PktIds}, S) ->
+          ({rejected, _QName, _PktIds}, S) ->
               S;
           ({block, _QName}, S) ->
               S;
@@ -106,16 +106,17 @@ handle_queue_actions(Actions, State) ->
               S
       end, State, Actions).
 
-read_msgs(Msgs, Ack, S) ->
-    lists:foldl(fun(Msg, S = #state{queue_type = QType}) ->
+read_msgs(Msgs, Ack, State) ->
+    lists:foldl(fun(Msg, S = #state{queue_type = _QType}) ->
                         read_msg(Msg, Ack, S)
                 end, State, Msgs).
 
 
-read_msg({QNameOrType, QPid, QMsgId, _Redelivered, Mc} = _Delivery,
-         Ack, S = #state{queue_type = QType}) ->
-    {ok, QType0, Actions} =
-        rabbit_queue_type:settle(QNameOrType, none, <<"foobar">>, [QMsgId], QType).
+read_msg({QNameOrType, _QPid, QMsgId, _Redelivered, _Mc} = _Delivery,
+         _Ack, S = #state{queue_type = QType}) ->
+    %% TODO STORE THE MSG IN DB etc
+    {ok, QType0, _Actions} =
+        rabbit_queue_type:settle(QNameOrType, none, <<"foobar">>, [QMsgId], QType),
     S#state{queue_type = QType0}.
 
 
