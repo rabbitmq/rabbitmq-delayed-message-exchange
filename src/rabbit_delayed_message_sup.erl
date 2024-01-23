@@ -50,14 +50,6 @@ start_link() ->
 init([]) ->
     {ok, {{one_for_one, 3, 10},
           children()}}.
-          %% [{rabbit_delayed_message, {rabbit_delayed_message, start_link, []},
-          %%   transient, ?WORKER_WAIT, worker, [rabbit_delayed_message]},
-          %%  {rabbit_delayed_message_kv_store, {rabbit_delayed_message_kv_store, start_link, []},
-          %%   transient, ?WORKER_WAIT, worker, [rabbit_delayed_message_kv_store]},
-          %%  {rabbit_leveled_bookie, {rabbit_delayed_message_kv_store, leveled_bookie_start_link, []},
-          %%   transient, ?WORKER_WAIT, worker, [rabbit_delayed_message_kv_store]},
-          %%  {rabbit_delayed_stream_reader, {rabbit_delayed_stream_reader, start_link, []},
-          %%   transient, ?WORKER_WAIT, worker, [rabbit_delayed_stream_reader]}
 
 stop() ->
     ok = supervisor:terminate_child(rabbit_sup, ?MODULE),
