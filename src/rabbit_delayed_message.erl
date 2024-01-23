@@ -104,6 +104,7 @@ handle_call(_Req, _From, State) ->
 handle_cast(go, State) ->
     State2 = refresh_config(State),
     Ref = erlang:send_after(?Timeout, self(), check_msgs),
+    rabbit_delayed_stream_reader:setup(),
     {noreply, State2#state{timer = Ref}};
 handle_cast(_C, State) ->
     {noreply, State}.

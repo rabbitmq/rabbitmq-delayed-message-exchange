@@ -30,7 +30,7 @@
         {offset = 0, queue_type}).
 
 setup() ->
-    gen_server:call(?MODULE, setup).
+    gen_server:cast(?MODULE, setup).
 
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
@@ -38,23 +38,39 @@ start_link() ->
 init([]) ->
     {ok, #state{}}.
 
-handle_call(setup, _From, #state{offset = Offset} = State) ->
-    QName = rabbit_misc:r(<<"/">>, queue, <<"internal-dmx-queue">>),
-    Spec = #{args => [{<<"x-stream-offset">>,long, Offset}],
-             prefetch_count => 10,channel_pid => self(),
-             consumer_tag => <<"foobar">>,exclusive_consume => false,
-             no_ack => false,ok_msg => undefined},
-    InitQType = rabbit_queue_type:init(),
-    {ok, QType} = rabbit_amqqueue:with(
-                    QName,
-                    fun(Q) ->
-                            rabbit_queue_type:consume(Q, Spec, InitQType)
-                    end),
-    {reply, ok, State#state{queue_type = QType}};
 handle_call(_M, _From, State) ->
     rabbit_log:debug(">>> CALL ~p", [_M]),
     {reply, ok, State}.
 
+handle_cast(setup, #state{offset = Offset} = State) ->
+    QName = rabbit_misc:r(<<"/">>, queue, <<"internal-dmx-queue">>),
+    case rabbit_amqqueue:exists(QName) of
+        true ->
+
+            {ok, TmpQ} =  rabbit_db_queue:get(QName),
+            #{name := StreamId} = amqqueue:get_type_state(TmpQ),
+            %% TODO must be some smarter way to figure out if the stream is up and running on this host
+            case rabbit_stream_coordinator:stream_overview(StreamId) of
+                {error, noproc} ->
+                    erlang:send_after(5000, self(), call_setup_again),
+                    {noreply, State};
+                _ ->
+                    Spec = #{args => [{<<"x-stream-offset">>,long, Offset}],
+                             prefetch_count => 10,channel_pid => self(),
+                             consumer_tag => <<"foobar">>,exclusive_consume => false,
+                             no_ack => false,ok_msg => undefined},
+                    InitQType = rabbit_queue_type:init(),
+                    {ok, QType} = rabbit_amqqueue:with(
+                                    QName,
+                                    fun(Q) ->
+                                            rabbit_queue_type:consume(Q, Spec, InitQType)
+                                    end),
+                    {noreply, State#state{queue_type = QType}}
+            end;
+        false ->
+            erlang:send_after(5000, self(), call_setup_again),
+            {noreply, State}
+    end;
 handle_cast({queue_event, _,_} = Event, State) ->
     rabbit_log:debug(">>> CAST ~p", [Event]),
     case handle_queue_event(Event, State) of
@@ -64,6 +80,8 @@ handle_cast({queue_event, _,_} = Event, State) ->
             {stop, Reason, NState}
     end.
 
+handle_info(call_setup_again, State) ->
+    handle_cast(setup, State);
 handle_info(_I, State) ->
     rabbit_log:debug(">>> INFO ~p", [_I]),
     {noreply, State}.
