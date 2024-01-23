@@ -22,18 +22,8 @@
 
 -export([init/1,
          apply/3,
-         write/3,
          delete/2,
          read/2]).
-
-write(ServerReference, Key, Value) ->
-    Cmd = {write, Key, Value},
-    case ra:process_command(ServerReference, Cmd) of
-        {ok, _, _} ->
-            ok;
-        {timeout, _} ->
-            timeout
-    end.
 
 delete(ServerReference, Key) ->
     Cmd = {delete, Key},
@@ -63,10 +53,6 @@ init(_Config) ->
     sets:new([{version, 2}]).
 
 apply(_Metadata,
-      {write, Key, Value}, State) ->
-    rabbit_delayed_message_kv_store:do_write(Key, Value),
-    {sets:add_element(Key, State), ok, []};
-apply(_Metadata,
       {delete, Key}, State) ->
     rabbit_delayed_message_kv_store:do_delete(Key),
-    {sets:del_element(Key, State), ok, []}.
+    {State, ok, []}.

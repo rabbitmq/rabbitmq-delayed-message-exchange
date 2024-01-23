@@ -149,7 +149,15 @@ route_messages([Key|Keys], #state{khepri_mod = Mod} = State) ->
     [_, MsgKey] = Key,
     V = rabbit_delayed_message_kv_store:do_take(MsgKey),
     route(Exchange, [V], State),
-    rabbit_delayed_message_kv_store:delete(MsgKey),
+
+    Dests = [#resource{virtual_host = <<"/">>,kind = queue,
+                       name = <<"internal-dmx-queue">>}],
+    Qs = rabbit_amqqueue:lookup_many(Dests),
+    Ann = #{x => <<"">>, rk => [<<"internal-dmx-queue">>],
+            <<"x-tombstone-key">> => MsgKey},
+    Msg =  mc:init(mc_amqp, [], Ann),
+    _ = rabbit_queue_type:deliver(Qs, Msg, #{}, stateless),
+%    rabbit_delayed_message_kv_store:delete(MsgKey),
     Mod:delete(Key),
     route_messages(Keys, State).
 
@@ -181,7 +189,9 @@ internal_delay_message(#state{khepri_mod = Mod}, Exchange, Message, Delay) ->
     Qs = rabbit_amqqueue:lookup_many(Dests),
     MsgWithKey = mc:set_annotation(<<"x-delay-key">>, Key, Message),
     _ = rabbit_queue_type:deliver(Qs, MsgWithKey, #{}, stateless),
-    ok = rabbit_delayed_message_kv_store:write(Key, Message).
+    ok.
+    %% Now stream reader writes the value in kv db, so no need to do it via RAFT.
+    %% ok = rabbit_delayed_message_kv_store:write(Key, Message).
 
 
 make_key(_DelayTS, _Exchange) ->

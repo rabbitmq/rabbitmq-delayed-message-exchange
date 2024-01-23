@@ -27,7 +27,6 @@
 -export([setup/0, maybe_make_cluster/0, maybe_resize_cluster/0]).
 
 -export([
-         write/2,
          delete/1,
          do_write/2,
          do_delete/1,
@@ -41,11 +40,6 @@
 
 -define(RA_SYSTEM, delayed_message_exchange).
 -define(RA_CLUSTER_NAME, dmx_kv_cluster).
-
-write(Key, Value) ->
-    rabbit_delayed_message_machine:write({?RA_CLUSTER_NAME, node()},
-                                         Key,
-                                         Value).
 
 delete(Key) ->
     rabbit_delayed_message_machine:delete({?RA_CLUSTER_NAME, node()},
@@ -235,8 +229,11 @@ do_take(Key) ->
     gen_server:call(?MODULE, {take, Key}).
 
 handle_call({take, Key}, _From, #state{kv_store_pid = Ref} = State) ->
-    {ok, V} = leveled_bookie:book_get(whereis(Ref), "foo", Key),
-    {reply, V, State}.
+    Value = case leveled_bookie:book_get(whereis(Ref), "foo", Key) of
+                {ok, V} -> V;
+                not_found -> not_found
+            end,
+    {reply, Value, State}.
 
 handle_cast({write, Key, Value}, #state{kv_store_pid = Ref} = State) ->
     leveled_bookie:book_put(whereis(Ref), "foo", Key, Value, []),

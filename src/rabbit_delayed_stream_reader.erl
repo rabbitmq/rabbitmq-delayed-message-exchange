@@ -24,7 +24,7 @@
          code_change/3]).
 
 
--export([setup/0]).
+-export([setup/0, declare_queue/0]).
 
 -record(state,
         {offset = 0, queue_type}).
@@ -96,6 +96,7 @@ handle_queue_event({queue_event, QName, Evt}, State0 = #state{queue_type = QType
     case rabbit_queue_type:handle_event(QName, Evt, QType0) of
         {ok, QType, Actions} ->
             State1 = State0#state{queue_type = QType},
+            %% TODO Update offset, both in state, but also in kv store?
             State = handle_queue_actions(Actions, State1),
             {ok, State};
         {eol, Actions} ->
@@ -130,12 +131,20 @@ read_msgs(Msgs, Ack, State) ->
                 end, State, Msgs).
 
 
-read_msg({QNameOrType, _QPid, QMsgId, _Redelivered, _Mc} = _Delivery,
+read_msg({QNameOrType, _QPid, QMsgId, _Redelivered, Mc} = _Delivery,
          _Ack, S = #state{queue_type = QType}) ->
-    %% TODO STORE THE MSG IN DB etc
-    {ok, QType0, _Actions} =
+    case mc:x_header(<<"x-tombstone-key">>, Mc) of
+        undefined ->
+            {binary, Key} =  mc:x_header(<<"x-delay-key">>, Mc),
+            rabbit_delayed_message_kv_store:do_write(Key, Mc);
+        {_, TKey} ->
+            rabbit_delayed_message_kv_store:do_delete(TKey)
+    end,
+    NewOffset = mc:get_annotation(<<"x-stream-offset">>, Mc),
+    {ok, QType0, Actions} =
         rabbit_queue_type:settle(QNameOrType, none, <<"foobar">>, [QMsgId], QType),
-    S#state{queue_type = QType0}.
+    handle_queue_actions(Actions, S#state{queue_type = QType0,
+                                          offset = NewOffset}).
 
 
 %% {ok, QueueType} = rabbit_queue_type:init().
@@ -144,3 +153,10 @@ read_msg({QNameOrType, _QPid, QMsgId, _Redelivered, _Mc} = _Delivery,
 %% Result2 = rabbit_amqqueue:with(QN, fun(Q1) -> rabbit_queue_type:consume(Q1, Spec5, S5) end).
 %% rabbit_queue_type:handle_event(QName, E1, S666).
 %% rabbit_queue_type:settle(QName, none, <<"foobar">>, NewDevs, S2003).
+declare_queue() ->
+    QName = rabbit_misc:r(<<"/">>, queue, <<"internal-dmx-queue">>),
+    rabbit_amqqueue:declare(QName,
+                            true,
+                            false,
+                            [{<<"x-queue-type">>, longstr, <<"stream">>}],
+                            none, <<"dmx">>, node()).
