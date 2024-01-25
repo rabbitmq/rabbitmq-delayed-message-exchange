@@ -33,12 +33,8 @@
         {kv_store_pid
         }).
 
--define(RA_SYSTEM, delayed_message_exchange).
--define(RA_CLUSTER_NAME, dmx_kv_cluster).
-
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
-
 
 leveled_bookie_start_link() ->
     DataDir = filename:join(

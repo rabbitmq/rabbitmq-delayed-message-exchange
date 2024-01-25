@@ -42,7 +42,7 @@ children() ->
     [child(N) || N <- [rabbit_delayed_message,
                        rabbit_delayed_message_kv_store,
                        rabbit_leveled_bookie,
-                       rabbit_delayed_stream_reader]].
+                       rabbit_delayed_stream_handler]].
 
 start_link() ->
     supervisor2:start_link({local, ?SERVER}, ?MODULE, []).

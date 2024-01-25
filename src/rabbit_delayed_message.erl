@@ -74,10 +74,6 @@ disable_plugin() ->
     ok.
 
 messages_delayed(_Exchange) ->
-    %% ExchangeName = Exchange#exchange.name,
-    %% MatchHead = #delay_entry{delay_key = make_key('_', #exchange{name = ExchangeName, _ = '_'}),
-    %%                          delivery  = '_', ref       = '_'},
-    %% Delays = mnesia:dirty_select(?TABLE_NAME, [{MatchHead, [], [true]}]),
     Delays = [],
     length(Delays).
 
@@ -103,7 +99,7 @@ handle_call(_Req, _From, State) ->
 handle_cast(go, State) ->
     State2 = refresh_config(State),
     Ref = erlang:send_after(?Timeout, self(), check_msgs),
-    rabbit_delayed_stream_reader:setup(),
+    rabbit_delayed_stream_handler:setup(),
     {noreply, State2#state{timer = Ref}};
 handle_cast(_C, State) ->
     {noreply, State}.
@@ -146,14 +142,9 @@ route_messages([Key|Keys], #state{khepri_mod = Mod} = State) ->
     [_, MsgKey] = Key,
     V = rabbit_delayed_message_kv_store:do_take(MsgKey),
     route(Exchange, [V], State),
-
-    Q = rabbit_misc:r(<<"/">>, queue, <<"internal-dmx-queue">>),
-    Dests = [Q],
-    Qs = rabbit_amqqueue:lookup_many(Dests),
-    Ann = #{x => <<"">>, rk => [<<"internal-dmx-queue">>],
-            <<"x-tombstone-key">> => MsgKey},
-    Msg =  mc:init(mc_amqp, [], Ann),
-    _ = rabbit_queue_type:deliver(Qs, Msg, #{}, stateless),
+    %%Send tombstone msg on the stream
+    rabbit_delayed_stream_handler:delete_msg_with_key(MsgKey),
+    %%Delete msg from Khepri
     Mod:delete(Key),
     route_messages(Keys, State).
 
@@ -180,17 +171,7 @@ internal_delay_message(#state{khepri_mod = Mod}, Exchange, Message, Delay) ->
     Key = make_key(DelayTS, Exchange),
     Mod:put([delayed_message_exchange, Key, delivery_time], DelayTS),
     Mod:put([delayed_message_exchange, Key, exchange], Exchange),
-    Q = rabbit_misc:r(<<"/">>, queue, <<"internal-dmx-queue">>),
-    case rabbit_amqqueue:exists(Q) of
-        true ->
-            ok;
-        false ->
-            rabbit_delayed_stream_reader:declare_queue()
-    end,
-    Dests = [Q],
-    Qs = rabbit_amqqueue:lookup_many(Dests),
-    MsgWithKey = mc:set_annotation(<<"x-delay-key">>, Key, Message),
-    _ = rabbit_queue_type:deliver(Qs, MsgWithKey, #{}, stateless),
+    rabbit_delayed_stream_handler:store_msg_with_key(Message, Key),
     ok.
 
 make_key(_DelayTS, _Exchange) ->
@@ -198,7 +179,6 @@ make_key(_DelayTS, _Exchange) ->
     %% BinDelayTS = integer_to_binary(DelayTS),
     %% ExchangeName = Exchange#exchange.name#resource.name,
     %% <<ExchangeName/binary, BinDelayTS/binary>>.
-
     %% TODO: Just a uuid for now. Any need to make the key actually matter?
     rabbit_guid:gen().
 
@@ -220,6 +200,11 @@ recover() ->
     end.
 
 list_exchanges() ->
+    %% TODO Change to fetch from khperi.
+    %% I think like this:
+    %% rabbit_db_exchange:match(#exchange{durable = true,
+    %%                                    type = 'x-delayed-message',
+    %%                                    _ = '_'})
     case mnesia:transaction(
            fun () ->
                    mnesia:match_object(
@@ -234,6 +219,7 @@ list_exchanges() ->
     end.
 
 recover_exchange_and_bindings(#exchange{name = XName} = X) ->
+    %%TODO Use khepri here ofc.
     mnesia:transaction(
         fun () ->
             Bindings = rabbit_binding:list_for_source(XName),

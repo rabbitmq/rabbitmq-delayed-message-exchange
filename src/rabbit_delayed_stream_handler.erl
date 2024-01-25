@@ -12,7 +12,7 @@
 %% and
 %% https://www.erlang.org/documentation/doc-7.0-rc1/erts-7.0/doc/html/time_correction.html
 
--module(rabbit_delayed_stream_reader).
+-module(rabbit_delayed_stream_handler).
 -include_lib("rabbit_common/include/rabbit.hrl").
 -include_lib("kernel/include/logger.hrl").
 -include_lib("rabbit_common/include/logging.hrl").
@@ -24,10 +24,15 @@
          code_change/3]).
 
 
--export([setup/0, declare_queue/0]).
+-export([setup/0, store_msg_with_key/2, delete_msg_with_key/1]).
 
 -record(state,
         {offset = 0, queue_type}).
+
+-define(STREAM_QUEUE_NAME, <<"internal-dmx-queue">>).
+-define(STREAM_QUEUE,
+        rabbit_misc:r(<<"/">>, queue, ?STREAM_QUEUE_NAME)).
+-define(CTAG, <<"dmx-stream-handler">>).
 
 setup() ->
     gen_server:cast(?MODULE, setup).
@@ -43,10 +48,9 @@ handle_call(_M, _From, State) ->
     {reply, ok, State}.
 
 handle_cast(setup, #state{offset = Offset} = State) ->
-    QName = rabbit_misc:r(<<"/">>, queue, <<"internal-dmx-queue">>),
+    QName = ?STREAM_QUEUE,
     case rabbit_amqqueue:exists(QName) of
         true ->
-
             {ok, TmpQ} =  rabbit_db_queue:get(QName),
             #{name := StreamId} = amqqueue:get_type_state(TmpQ),
             %% TODO must be some smarter way to figure out if the stream is up and running on this host
@@ -57,7 +61,7 @@ handle_cast(setup, #state{offset = Offset} = State) ->
                 _ ->
                     Spec = #{args => [{<<"x-stream-offset">>,long, Offset}],
                              prefetch_count => 10,channel_pid => self(),
-                             consumer_tag => <<"foobar">>,exclusive_consume => false,
+                             consumer_tag => ?CTAG, exclusive_consume => false,
                              no_ack => false,ok_msg => undefined},
                     InitQType = rabbit_queue_type:init(),
                     {ok, QType} = rabbit_amqqueue:with(
@@ -65,7 +69,8 @@ handle_cast(setup, #state{offset = Offset} = State) ->
                                     fun(Q) ->
                                             rabbit_queue_type:consume(Q, Spec, InitQType)
                                     end),
-                    {noreply, State#state{queue_type = QType}}
+                    Offset = get_offset(),
+                    {noreply, State#state{queue_type = QType, offset = Offset}}
             end;
         false ->
             erlang:send_after(5000, self(), call_setup_again),
@@ -111,7 +116,7 @@ handle_queue_event({queue_event, QName, Evt}, State0 = #state{queue_type = QType
 handle_queue_actions(Actions, State) ->
     rabbit_log:debug(">>> handle actions ~p", [Actions]),
     lists:foldl(
-      fun ({deliver, _Tag, Ack, Msgs}, S) ->
+      fun ({deliver, ?CTAG, Ack, Msgs}, S) ->
               read_msgs(Msgs, Ack, S);
           ({settled, _QName, _PktIds}, S) ->
               S;
@@ -140,9 +145,10 @@ read_msg({QNameOrType, _QPid, QMsgId, _Redelivered, Mc} = _Delivery,
         {_, TKey} ->
             rabbit_delayed_message_kv_store:do_delete(TKey)
     end,
-    NewOffset = mc:get_annotation(<<"x-stream-offset">>, Mc),
+    NewOffset = mc:get_annotation(<<"x-stream-offset">>, Mc) + 1,
+    set_offset(NewOffset),
     {ok, QType0, Actions} =
-        rabbit_queue_type:settle(QNameOrType, none, <<"foobar">>, [QMsgId], QType),
+        rabbit_queue_type:settle(QNameOrType, none, ?CTAG, [QMsgId], QType),
     handle_queue_actions(Actions, S#state{queue_type = QType0,
                                           offset = NewOffset}).
 
@@ -154,9 +160,40 @@ read_msg({QNameOrType, _QPid, QMsgId, _Redelivered, Mc} = _Delivery,
 %% rabbit_queue_type:handle_event(QName, E1, S666).
 %% rabbit_queue_type:settle(QName, none, <<"foobar">>, NewDevs, S2003).
 declare_queue() ->
-    QName = rabbit_misc:r(<<"/">>, queue, <<"internal-dmx-queue">>),
-    rabbit_amqqueue:declare(QName,
+    rabbit_amqqueue:declare(?STREAM_QUEUE,
                             true,
                             false,
                             [{<<"x-queue-type">>, longstr, <<"stream">>}],
                             none, <<"dmx">>, node()).
+
+add_to_stream(Message) ->
+    Dests = [?STREAM_QUEUE],
+    Qs = rabbit_amqqueue:lookup_many(Dests),
+    _ = rabbit_queue_type:deliver(Qs, Message, #{}, stateless).
+
+store_msg_with_key(Message, Key) ->
+    case rabbit_amqqueue:exists(?STREAM_QUEUE) of
+        true ->
+            ok;
+        false ->
+            declare_queue()
+    end,
+    MsgWithKey = mc:set_annotation(<<"x-delay-key">>, Key, Message),
+    add_to_stream(MsgWithKey).
+
+delete_msg_with_key(MsgKey) ->
+    Ann = #{x => <<"">>, rk => [?STREAM_QUEUE_NAME],
+            <<"x-tombstone-key">> => MsgKey},
+    Msg =  mc:init(mc_amqp, [], Ann),
+    add_to_stream(Msg).
+
+set_offset(Offset) ->
+    rabbit_delayed_message_kv_store:do_write(offset, Offset).
+
+get_offset() ->
+    case rabbit_delayed_message_kv_store:do_take(offset) of
+        not_found ->
+            0;
+        V ->
+            V
+    end.
