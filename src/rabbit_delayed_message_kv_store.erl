@@ -17,6 +17,7 @@
 -include_lib("kernel/include/logger.hrl").
 -include_lib("rabbit_common/include/logging.hrl").
 
+%% TODO due to using streams etc, maybe a bit overkill to make this a server...
 -behaviour(gen_server).
 
 -export([start_link/0, leveled_bookie_start_link/0]).

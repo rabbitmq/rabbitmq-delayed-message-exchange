@@ -160,10 +160,11 @@ read_msg({QNameOrType, _QPid, QMsgId, _Redelivered, Mc} = _Delivery,
 %% rabbit_queue_type:handle_event(QName, E1, S666).
 %% rabbit_queue_type:settle(QName, none, <<"foobar">>, NewDevs, S2003).
 declare_queue() ->
+    %%TODO maybe max age and max length bytes from config.
     rabbit_amqqueue:declare(?STREAM_QUEUE,
                             true,
                             false,
-                            [{<<"x-queue-type">>, longstr, <<"stream">>}],
+                            [{<<"x-queue-type">>, longstr, <<"stream">>},{<<"x-max-age">>, longstr, <<"5D">>}],
                             none, <<"dmx">>, node()).
 
 add_to_stream(Message) ->
