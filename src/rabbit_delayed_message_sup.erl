@@ -24,13 +24,32 @@
                     {enables,     rabbit_exchange_type_delayed_message},
                     {cleanup,     {?MODULE, stop, []}}]}).
 
+child(rabbit_leveled_bookie = Name) ->
+    child(Name,
+          rabbit_delayed_message_kv_store,
+          leveled_bookie_start_link);
+child(Name) ->
+    child(Name, Name, start_link).
+child(Name, M, F) ->
+    #{id => Name,
+      start => {M, F, []},
+      restart => transient,
+      shutdown => ?WORKER_WAIT,
+      type => worker,
+      modules => [M]}.
+
+children() ->
+    [child(N) || N <- [rabbit_delayed_message,
+                       rabbit_delayed_message_kv_store,
+                       rabbit_leveled_bookie,
+                       rabbit_delayed_stream_handler]].
+
 start_link() ->
     supervisor2:start_link({local, ?SERVER}, ?MODULE, []).
 
 init([]) ->
     {ok, {{one_for_one, 3, 10},
-          [{rabbit_delayed_message, {rabbit_delayed_message, start_link, []},
-            transient, ?WORKER_WAIT, worker, [rabbit_delayed_message]}]}}.
+          children()}}.
 
 stop() ->
     ok = supervisor:terminate_child(rabbit_sup, ?MODULE),

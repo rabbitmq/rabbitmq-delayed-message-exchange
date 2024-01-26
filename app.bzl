@@ -7,6 +7,9 @@ def all_srcs(name = "all_srcs"):
         srcs = [
             "src/rabbit_delayed_message.erl",
             "src/rabbit_delayed_message_app.erl",
+            "src/rabbit_delayed_message_khepri.erl",
+            "src/rabbit_delayed_message_kv_store.erl",
+            "src/rabbit_delayed_message_machine.erl",
             "src/rabbit_delayed_message_sup.erl",
             "src/rabbit_delayed_message_utils.erl",
             "src/rabbit_exchange_type_delayed_message.erl",
@@ -39,6 +42,9 @@ def all_beam_files(name = "all_beam_files"):
         srcs = [
             "src/rabbit_delayed_message.erl",
             "src/rabbit_delayed_message_app.erl",
+            "src/rabbit_delayed_message_khepri.erl",
+            "src/rabbit_delayed_message_kv_store.erl",
+            "src/rabbit_delayed_message_machine.erl",
             "src/rabbit_delayed_message_sup.erl",
             "src/rabbit_delayed_message_utils.erl",
             "src/rabbit_exchange_type_delayed_message.erl",
@@ -47,7 +53,7 @@ def all_beam_files(name = "all_beam_files"):
         app_name = "rabbitmq_delayed_message_exchange",
         dest = "ebin",
         erlc_opts = "//:erlc_opts",
-        deps = ["@rabbitmq-server//deps/rabbit:erlang_app", "@rabbitmq-server//deps/rabbit_common:erlang_app"],
+        deps = ["@khepri//:erlang_app", "@ra//:erlang_app", "@rabbitmq-server//deps/rabbit:erlang_app", "@rabbitmq-server//deps/rabbit_common:erlang_app"],
     )
     filegroup(
         name = "beam_files",
@@ -61,6 +67,9 @@ def all_test_beam_files(name = "all_test_beam_files"):
         srcs = [
             "src/rabbit_delayed_message.erl",
             "src/rabbit_delayed_message_app.erl",
+            "src/rabbit_delayed_message_khepri.erl",
+            "src/rabbit_delayed_message_kv_store.erl",
+            "src/rabbit_delayed_message_machine.erl",
             "src/rabbit_delayed_message_sup.erl",
             "src/rabbit_delayed_message_utils.erl",
             "src/rabbit_exchange_type_delayed_message.erl",
@@ -69,7 +78,7 @@ def all_test_beam_files(name = "all_test_beam_files"):
         app_name = "rabbitmq_delayed_message_exchange",
         dest = "test",
         erlc_opts = "//:test_erlc_opts",
-        deps = ["@rabbitmq-server//deps/rabbit:erlang_app", "@rabbitmq-server//deps/rabbit_common:erlang_app"],
+        deps = ["@khepri//:erlang_app", "@ra//:erlang_app", "@rabbitmq-server//deps/rabbit:erlang_app", "@rabbitmq-server//deps/rabbit_common:erlang_app"],
     )
     filegroup(
         name = "test_beam_files",

@@ -1,4 +1,4 @@
-%% This Source Code Form is subject to the terms of the Mozilla Public
+% This Source Code Form is subject to the terms of the Mozilla Public
 %% License, v. 2.0. If a copy of the MPL was not distributed with this
 %% file, You can obtain one at https://mozilla.org/MPL/2.0/.
 %%
@@ -14,26 +14,25 @@
 
 -module(rabbit_delayed_message).
 -include_lib("rabbit_common/include/rabbit.hrl").
+-include_lib("khepri/include/khepri.hrl").
+
 -rabbit_boot_step({?MODULE,
                    [{description, "exchange delayed message mnesia setup"},
-                    {mfa, {?MODULE, setup_mnesia, []}},
+                    {mfa, {?MODULE, setup, []}},
                     {cleanup, {?MODULE, disable_plugin, []}},
-                    {requires, external_infrastructure},
-                    {enables, rabbit_registry}]}).
+                    {requires,    recovery}]}).
+                    %% {requires, external_infrastructure},
+                    %% {enables, rabbit_registry}]}).
 
 -behaviour(gen_server).
 
--export([start_link/0, delay_message/3, setup_mnesia/0, disable_plugin/0, go/0]).
+-export([start_link/0, delay_message/3, setup/0, disable_plugin/0, go/0]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
          code_change/3]).
--export([messages_delayed/1]).
+-export([messages_delayed/1, route/3]).
 
 %% For testing, debugging and manual use
--export([refresh_config/0,
-         table_name/0,
-         index_table_name/0]).
-
--import(rabbit_delayed_message_utils, [swap_delay_header/1]).
+-export([refresh_config/0]).
 
 -type t_reference() :: reference().
 -type delay() :: non_neg_integer().
@@ -50,27 +49,11 @@
                              delay()) ->
                                     nodelay | {ok, t_reference()}.
 
--define(TABLE_NAME, append_to_atom(?MODULE, node())).
--define(INDEX_TABLE_NAME, append_to_atom(?TABLE_NAME, "_index")).
+-define(Timeout, 5000).
 
 -record(state, {timer,
+                khepri_mod,
                 stats_state}).
-
--record(delay_key,
-        { timestamp, %% timestamp delay
-          exchange   %% rabbit_types:exchange()
-        }).
-
--record(delay_entry,
-        { delay_key, %% delay_key record
-          delivery,  %% the message delivery
-          ref        %% ref to make records distinct for 'bag' semantics.
-        }).
-
--record(delay_index,
-        { delay_key, %% delay_key record
-          const      %% record must have two fields
-        }).
 
 %%--------------------------------------------------------------------
 
@@ -84,29 +67,14 @@ delay_message(Exchange, Message, Delay) ->
     gen_server:call(?MODULE, {delay_message, Exchange, Message, Delay},
                     infinity).
 
-setup_mnesia() ->
-    _ = mnesia:create_table(?TABLE_NAME, [{record_name, delay_entry},
-                                          {attributes,
-                                           record_info(fields, delay_entry)},
-                                          {type, bag},
-                                          {disc_copies, [node()]}]),
-    _ = mnesia:create_table(?INDEX_TABLE_NAME, [{record_name, delay_index},
-                                                {attributes,
-                                                 record_info(fields, delay_index)},
-                                                {type, ordered_set},
-                                                {disc_copies, [node()]}]),
-    rabbit_table:wait([?TABLE_NAME, ?INDEX_TABLE_NAME]).
-
-disable_plugin() ->
-    _ = mnesia:delete_table(?INDEX_TABLE_NAME),
-    _ = mnesia:delete_table(?TABLE_NAME),
+setup() ->
     ok.
 
-messages_delayed(Exchange) ->
-    ExchangeName = Exchange#exchange.name,
-    MatchHead = #delay_entry{delay_key = make_key('_', #exchange{name = ExchangeName, _ = '_'}),
-                             delivery  = '_', ref       = '_'},
-    Delays = mnesia:dirty_select(?TABLE_NAME, [{MatchHead, [], [true]}]),
+disable_plugin() ->
+    ok.
+
+messages_delayed(_Exchange) ->
+    Delays = [],
     length(Delays).
 
 refresh_config() ->
@@ -116,13 +84,13 @@ refresh_config() ->
 
 init([]) ->
     _ = recover(),
-    {ok, #state{timer = not_set}}.
+    {ok, #state{}}.
 
 handle_call({delay_message, Exchange, Message, Delay},
-            _From, State = #state{timer = CurrTimer}) ->
-    Reply = {ok, NewTimer} = internal_delay_message(CurrTimer, Exchange, Message, Delay),
-    State2 = State#state{timer = NewTimer},
-    {reply, Reply, State2};
+            _From, State) ->
+    %% TODO perhaps write and read should be handled in different processes.
+    ok = internal_delay_message(State, Exchange, Message, Delay),
+    {reply, ok, State};
 handle_call(refresh_config, _From, State) ->
     {reply, ok, refresh_config(State)};
 handle_call(_Req, _From, State) ->
@@ -130,20 +98,33 @@ handle_call(_Req, _From, State) ->
 
 handle_cast(go, State) ->
     State2 = refresh_config(State),
-    {noreply, State2#state{timer = maybe_delay_first()}};
+    Ref = erlang:send_after(?Timeout, self(), check_msgs),
+    rabbit_delayed_stream_handler:setup(),
+    {noreply, State2#state{timer = Ref}};
 handle_cast(_C, State) ->
     {noreply, State}.
 
-handle_info({timeout, _TimerRef, {deliver, Key}}, State) ->
-    case mnesia:dirty_read(?TABLE_NAME, Key) of
-        [] ->
-            mnesia:dirty_delete(?INDEX_TABLE_NAME, Key);
-        Deliveries ->
-            _ = route(Key, Deliveries, State),
-            mnesia:dirty_delete(?TABLE_NAME, Key),
-            mnesia:dirty_delete(?INDEX_TABLE_NAME, Key)
+handle_info(check_msgs, #state{khepri_mod = Mod} = State) ->
+    case ra_leaderboard:lookup_leader(Mod:get_store_id()) of
+        {_Name, Node} when Node == node() ->
+            {ok, Es}  =
+                Mod:match(
+                  [delayed_message_exchange,
+                   #if_path_matches{regex=any},
+                   #if_all{conditions =
+                               [delivery_time,
+                                #if_data_matches{pattern = '$1',
+                                                 conditions = [{'<', '$1', erlang:system_time(milli_seconds)}]}
+                               ]
+                          }
+                  ]),
+            Keys = [[delayed_message_exchange, Key] || {[delayed_message_exchange, Key|_], _} <- maps:to_list(Es)],
+            route_messages(Keys, State);
+        _ ->
+            ok
     end,
-    {noreply, State#state{timer = maybe_delay_first()}};
+    Ref = erlang:send_after(?Timeout, self(), check_msgs),
+    {noreply, State#state{timer = Ref}};
 handle_info(_I, State) ->
     {noreply, State}.
 
@@ -154,84 +135,52 @@ code_change(_, State, _) -> {ok, State}.
 
 %%--------------------------------------------------------------------
 
-maybe_delay_first() ->
-    case mnesia:dirty_first(?INDEX_TABLE_NAME) of
-        %% destructuring to prevent matching '$end_of_table'
-        #delay_key{timestamp = FirstTS} = Key2 ->
-            %% there are messages that will expire and need to be delivered
-            Now = erlang:system_time(milli_seconds),
-            start_timer(FirstTS - Now, Key2);
-        _ ->
-            %% nothing to do
-            not_set
-    end.
+route_messages([], State) ->
+    State;
+route_messages([Key|Keys], #state{khepri_mod = Mod} = State) ->
+    {ok, Exchange} = Mod:get(Key++[exchange]),
+    [_, MsgKey] = Key,
+    V = rabbit_delayed_message_kv_store:do_take(MsgKey),
+    route(Exchange, [V], State),
+    %%Send tombstone msg on the stream
+    rabbit_delayed_stream_handler:delete_msg_with_key(MsgKey),
+    %%Delete msg from Khepri
+    Mod:delete(Key),
+    route_messages(Keys, State).
 
-route(#delay_key{exchange = Ex}, Deliveries, State) ->
+route(Ex, Deliveries, State) ->
     ExName = Ex#exchange.name,
-    lists:map(fun (#delay_entry{delivery = Msg0}) ->
+    rabbit_log:debug(">>> Delayed message exchange:~nEX:~n~pDevs:~n~p",[Ex, Deliveries]),
+    lists:map(fun (Msg0) ->
                       Msg1 = case Msg0 of
-                               #delivery{message = BasicMessage} ->
+                                 #delivery{message = BasicMessage} ->
                                      BasicMessage;
-                               _MC ->
-                                   Msg0
-                           end,
-                      Msg2 = swap_delay_header(Msg1),
+                                 _MC ->
+                                     Msg0
+                             end,
+                      Msg2 = rabbit_delayed_message_utils:swap_delay_header(Msg1),
                       Dests = rabbit_exchange:route(Ex, Msg2),
                       Qs = rabbit_amqqueue:lookup_many(Dests),
                       _ = rabbit_queue_type:deliver(Qs, Msg2, #{}, stateless),
                       bump_routed_stats(ExName, Qs, State)
               end, Deliveries).
 
-internal_delay_message(CurrTimer, Exchange, Message, Delay) ->
+internal_delay_message(#state{khepri_mod = Mod}, Exchange, Message, Delay) ->
     Now = erlang:system_time(milli_seconds),
-    %% keys are timestamps in milliseconds,in the future
     DelayTS = Now + Delay,
-    mnesia:dirty_write(?INDEX_TABLE_NAME,
-                       make_index(DelayTS, Exchange)),
-    mnesia:dirty_write(?TABLE_NAME,
-                       make_delay(DelayTS, Exchange, Message)),
-    case CurrTimer of
-        not_set ->
-            %% No timer in progress, so we start our own.
-            {ok, maybe_delay_first()};
-        _ ->
-            case erlang:read_timer(CurrTimer) of
-                false ->
-                    %% Timer is already expired.  Handler will be invoked soon.
-                    {ok, CurrTimer};
-                CurrMS when Delay < CurrMS ->
-                    %% Current timer lasts longer that new message delay
-                    _ = erlang:cancel_timer(CurrTimer),
-                    {ok, start_timer(Delay, make_key(DelayTS, Exchange))};
-                _ ->
-                    %% Timer is set to expire sooner than this
-                    %% message's scheduled delivery time.
-                    {ok, CurrTimer}
-            end
-    end.
+    Key = make_key(DelayTS, Exchange),
+    Mod:put([delayed_message_exchange, Key, delivery_time], DelayTS),
+    Mod:put([delayed_message_exchange, Key, exchange], Exchange),
+    rabbit_delayed_stream_handler:store_msg_with_key(Message, Key),
+    ok.
 
-%% Key will be used upon message receipt to fetch
-%% the deliveries from the database
-start_timer(Delay, Key) ->
-    erlang:start_timer(erlang:max(0, Delay), self(), {deliver, Key}).
-
-make_delay(DelayTS, Exchange, Delivery) ->
-    #delay_entry{delay_key = make_key(DelayTS, Exchange),
-                 delivery  = Delivery,
-                 ref       = make_ref()}.
-
-make_index(DelayTS, Exchange) ->
-    #delay_index{delay_key = make_key(DelayTS, Exchange),
-                 const = true}.
-
-make_key(DelayTS, Exchange) ->
-    #delay_key{timestamp = DelayTS,
-               exchange  = Exchange}.
-
-append_to_atom(Atom, Append) when is_atom(Append) ->
-    append_to_atom(Atom, atom_to_list(Append));
-append_to_atom(Atom, Append) when is_list(Append) ->
-    list_to_atom(atom_to_list(Atom) ++ Append).
+make_key(_DelayTS, _Exchange) ->
+    %% TODO: make unique, or store more than one msg/exchange data with the key.
+    %% BinDelayTS = integer_to_binary(DelayTS),
+    %% ExchangeName = Exchange#exchange.name#resource.name,
+    %% <<ExchangeName/binary, BinDelayTS/binary>>.
+    %% TODO: Just a uuid for now. Any need to make the key actually matter?
+    rabbit_guid:gen().
 
 recover() ->
     %% topology recovery has already happened, we have to recover state for any durable
@@ -251,6 +200,11 @@ recover() ->
     end.
 
 list_exchanges() ->
+    %% TODO Change to fetch from khperi.
+    %% I think like this:
+    %% rabbit_db_exchange:match(#exchange{durable = true,
+    %%                                    type = 'x-delayed-message',
+    %%                                    _ = '_'})
     case mnesia:transaction(
            fun () ->
                    mnesia:match_object(
@@ -265,10 +219,11 @@ list_exchanges() ->
     end.
 
 recover_exchange_and_bindings(#exchange{name = XName} = X) ->
+    %%TODO Use khepri here ofc.
     mnesia:transaction(
         fun () ->
             Bindings = rabbit_binding:list_for_source(XName),
-            _ = [rabbit_exchange_type_delayed_message:add_binding(transaction, X, B)
+                _ = [rabbit_exchange_type_delayed_message:add_binding(transaction, X, B)
                  || B <- lists:usort(Bindings)],
             rabbit_log:debug("Delayed message exchange: "
                               "recovered bindings for ~s",
@@ -314,11 +269,14 @@ bump_routed_stats(ExName, Qs, State) ->
             ok
     end.
 
-refresh_config(State) ->
-    rabbit_event:init_stats_timer(State, #state.stats_state).
+refresh_config(State0) ->
+    Mod = case rabbit_feature_flags:is_enabled(khepri_db) of
+              true ->
+                  rabbit_khepri;
+              false ->
+                  ok = rabbit_delayed_message_khepri:setup(),
+                  rabbit_delayed_message_khepri
+          end,
 
-table_name() ->
-    ?TABLE_NAME.
-
-index_table_name() ->
-    ?INDEX_TABLE_NAME.
+    State = rabbit_event:init_stats_timer(State0, #state.stats_state),
+    State#state{khepri_mod = Mod}.
