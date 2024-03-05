@@ -3,8 +3,8 @@ on:
   push:
     branches:
       - main
+      - v3.13.x
       - v3.12.x
-      - v3.11.x
   pull_request:
 jobs:
   test:
@@ -12,8 +12,7 @@ jobs:
       fail-fast: false
       matrix:
         bazel_otp_name:
-        - "25"
-        - "26"
+          - "26_2"
     uses: rabbitmq/rabbitmq-lvc-exchange/.github/workflows/bazel-test.yml@main
     with:
       bazel_otp_name: ${{ matrix.bazel_otp_name }}

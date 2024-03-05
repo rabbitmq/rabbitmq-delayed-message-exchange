@@ -1,6 +1,6 @@
 load("@rules_erlang//:ct.bzl", "ct_test")
 
-BROKER_VERSION_REQUIREMENTS_TERM = """{broker_version_requirements, ["3.11.0"]}"""
+BROKER_VERSION_REQUIREMENTS_TERM = """{broker_version_requirements, ["3.13.0"]}"""
 
 def rabbitmq_suite(
         name = None,
