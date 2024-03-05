@@ -39,14 +39,11 @@ build:rbe --host_platform=@rabbitmq-server//bazel/platforms:erlang_internal_plat
 build:rbe --host_cpu=k8
 build:rbe --cpu=k8
 
-build:rbe-24 --config=rbe
-build:rbe-24 --platforms=@rabbitmq-server//bazel/platforms:erlang_linux_24_platform
+build:rbe-25_3 --config=rbe
+build:rbe-25_3 --platforms=@rabbitmq-server//bazel/platforms:erlang_linux_25_3_platform
 
-build:rbe-25 --config=rbe
-build:rbe-25 --platforms=@rabbitmq-server//bazel/platforms:erlang_linux_25_3_platform
-
-build:rbe-26 --config=rbe
-build:rbe-26 --platforms=@rabbitmq-server//bazel/platforms:erlang_linux_26_platform
+build:rbe-26_2 --config=rbe
+build:rbe-26_2 --platforms=@rabbitmq-server//bazel/platforms:erlang_linux_26_2_platform
 
 # Try importing a user specific .bazelrc
 # You can create your own by copying and editing the template-user.bazelrc template:

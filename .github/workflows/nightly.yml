@@ -9,11 +9,11 @@ jobs:
       fail-fast: false
       matrix:
         bazel_otp_name:
-        - "25"
+          - "26_2"
         branch:
-        - main
-        - v3.12.x
-        - v3.11.x
+          - main
+          - v3.13.x
+          - v3.12.x
     uses: rabbitmq/rabbitmq-lvc-exchange/.github/workflows/bazel-test-nightly.yml@main
     with:
       bazel_otp_name: ${{ matrix.bazel_otp_name }}

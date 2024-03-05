@@ -7,5 +7,5 @@ jobs:
   release:
     uses: rabbitmq/rabbitmq-lvc-exchange/.github/workflows/plugin-release.yml@main
     with:
-      bazel_otp_name: 25
+      bazel_otp_name: "26_2"
       plugin_name: rabbitmq_delayed_message_exchange
