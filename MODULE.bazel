@@ -32,9 +32,9 @@ bazel_dep(
 
 archive_override(
     module_name = "rabbitmq-server",
-    strip_prefix = "rabbitmq-server-3.13.x",
+    strip_prefix = "rabbitmq-server-main",
     urls = [
-        "https://github.com/rabbitmq/rabbitmq-server/archive/refs/heads/v3.13.x.zip",
+        "https://github.com/rabbitmq/rabbitmq-server/archive/refs/heads/main.zip",
     ],
 )
 
