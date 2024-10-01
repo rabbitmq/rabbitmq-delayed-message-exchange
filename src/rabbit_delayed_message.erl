@@ -85,6 +85,13 @@ delay_message(Exchange, Message, Delay) ->
                     infinity).
 
 setup_mnesia() ->
+    case rabbit_khepri:is_enabled() of
+        true ->
+            ensure_mnesia_running();
+        false ->
+            %% Mnesia should already be running
+            ok
+    end,
     _ = mnesia:create_table(?TABLE_NAME, [{record_name, delay_entry},
                                           {attributes,
                                            record_info(fields, delay_entry)},
@@ -96,6 +103,25 @@ setup_mnesia() ->
                                                 {type, ordered_set},
                                                 {disc_copies, [node()]}]),
     rabbit_table:wait([?TABLE_NAME, ?INDEX_TABLE_NAME]).
+
+ensure_mnesia_running() ->
+    case rabbit_mnesia:is_running() of
+        false ->
+            ensure_mnesia_disc_schema(),
+            rabbit_mnesia:start_mnesia(_CheckConsistency = false);
+        true ->
+            ok
+    end.
+
+ensure_mnesia_disc_schema() ->
+    case mnesia:system_info(use_dir) of
+        true ->
+            %% There is a disc schema already
+            ok;
+        false ->
+            rabbit_misc:ensure_ok(mnesia:create_schema([node()]),
+                                  {?MODULE, cannot_create_mnesia_schema})
+    end.
 
 disable_plugin() ->
     _ = mnesia:delete_table(?INDEX_TABLE_NAME),

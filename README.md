@@ -33,7 +33,12 @@ of some kind.
 
 The most recent release of this plugin targets RabbitMQ 4.0.x.
 
-This plugin currently only supports Mnesia for metadata store (do not use it with Khepri).
+This plugin can be enabled on a RabbitMQ cluster that uses either Mnesia or Khepri as metadata store.
+
+Warning: the plugin must be disabled during Khepri migration. One
+needs to disable this plugin before enabling the `khepri_db` feature
+flag and enable it after. This will result in losing all previous
+delayed messages.
 
 ## Supported Erlang/OTP Versions
 
