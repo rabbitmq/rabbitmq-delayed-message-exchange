@@ -14,7 +14,7 @@ endif
 PROJECT_VERSION := $(RABBITMQ_VERSION)
 
 ifeq ($(PROJECT_VERSION),)
-PROJECT_VERSION := $(shell \
+PROJECT_VERSION = $(shell \
 if test -f git-revisions.txt; then \
 	head -n1 git-revisions.txt | \
 	awk '{print $$$(words $(PROJECT_DESCRIPTION) version);}'; \
@@ -62,6 +62,7 @@ dep_rabbitmq_dotnet_client            = git_rmq           rabbitmq-dotnet-client
 dep_rabbitmq_event_exchange           = git_rmq-subfolder rabbitmq-event-exchange $(current_rmq_ref) $(base_rmq_ref) main
 dep_rabbitmq_federation               = git_rmq-subfolder rabbitmq-federation $(current_rmq_ref) $(base_rmq_ref) main
 dep_rabbitmq_federation_management    = git_rmq-subfolder rabbitmq-federation-management $(current_rmq_ref) $(base_rmq_ref) main
+dep_rabbitmq_federation_prometheus    = git_rmq-subfolder rabbitmq-federation-prometheus $(current_rmq_ref) $(base_rmq_ref) main
 dep_rabbitmq_java_client              = git_rmq           rabbitmq-java-client $(current_rmq_ref) $(base_rmq_ref) main
 dep_rabbitmq_jms_client               = git_rmq           rabbitmq-jms-client $(current_rmq_ref) $(base_rmq_ref) main
 dep_rabbitmq_jms_cts                  = git_rmq           rabbitmq-jms-cts $(current_rmq_ref) $(base_rmq_ref) main
@@ -89,6 +90,7 @@ dep_rabbitmq_rtopic_exchange          = git_rmq           rabbitmq-rtopic-exchan
 dep_rabbitmq_sharding                 = git_rmq-subfolder rabbitmq-sharding $(current_rmq_ref) $(base_rmq_ref) main
 dep_rabbitmq_shovel                   = git_rmq-subfolder rabbitmq-shovel $(current_rmq_ref) $(base_rmq_ref) main
 dep_rabbitmq_shovel_management        = git_rmq-subfolder rabbitmq-shovel-management $(current_rmq_ref) $(base_rmq_ref) main
+dep_rabbitmq_shovel_prometheus        = git_rmq-subfolder rabbitmq-shovel-prometheus $(current_rmq_ref) $(base_rmq_ref) main
 dep_rabbitmq_stomp                    = git_rmq-subfolder rabbitmq-stomp $(current_rmq_ref) $(base_rmq_ref) main
 dep_rabbitmq_stream                   = git_rmq-subfolder rabbitmq-stream $(current_rmq_ref) $(base_rmq_ref) main
 dep_rabbitmq_stream_common            = git_rmq-subfolder rabbitmq-stream-common $(current_rmq_ref) $(base_rmq_ref) main
@@ -108,24 +110,26 @@ dep_toke                              = git_rmq           toke $(current_rmq_ref
 
 # Third-party dependencies version pinning.
 #
-# We do that in this file, which is copied in all projects, to ensure
-# all projects use the same versions. It avoids conflicts and makes it
-# possible to work with rabbitmq-public-umbrella.
+# We do that in this file, which is included by all projects, to ensure
+# all projects use the same versions. It avoids conflicts.
 
 dep_accept = hex 0.3.5
-dep_cowboy = hex 2.11.0
-dep_cowlib = hex 2.12.1
+dep_cowboy = hex 2.12.0
+dep_cowlib = hex 2.13.0
 dep_credentials_obfuscation = hex 3.4.0
-dep_khepri = hex 0.12.1
-dep_khepri_mnesia_migration = hex 0.4.0
-dep_looking_glass = git https://github.com/rabbitmq/looking_glass.git main
+dep_cuttlefish = hex 3.4.0
+dep_gen_batch_server = hex 0.8.8
+dep_jose = hex 1.11.10
+dep_khepri = hex 0.16.0
+dep_khepri_mnesia_migration = hex 0.7.0
 dep_prometheus = hex 4.11.0
-dep_ra = hex 2.9.1
+dep_ra = hex 2.14.0
 dep_ranch = hex 2.1.0
 dep_recon = hex 2.5.3
 dep_redbug = hex 2.0.7
 dep_thoas = hex 1.0.0
-dep_observer_cli = hex 1.7.3
+dep_observer_cli = hex 1.7.5
+dep_seshat = git https://github.com/rabbitmq/seshat v0.6.1
 dep_stdout_formatter = hex 0.2.4
 dep_sysmon_handler = hex 1.3.0
 
@@ -154,6 +158,7 @@ RABBITMQ_COMPONENTS = amqp_client \
 		      rabbitmq_event_exchange \
 		      rabbitmq_federation \
 		      rabbitmq_federation_management \
+		      rabbitmq_federation_prometheus \
 		      rabbitmq_java_client \
 		      rabbitmq_jms_client \
 		      rabbitmq_jms_cts \
@@ -181,6 +186,7 @@ RABBITMQ_COMPONENTS = amqp_client \
 		      rabbitmq_sharding \
 		      rabbitmq_shovel \
 		      rabbitmq_shovel_management \
+		      rabbitmq_shovel_prometheus \
 		      rabbitmq_stomp \
 		      rabbitmq_stream \
 		      rabbitmq_stream_common \
@@ -348,38 +354,19 @@ prepare-dist::
 	@:
 
 # --------------------------------------------------------------------
-# Umbrella-specific settings.
+# Monorepo-specific settings.
 # --------------------------------------------------------------------
 
 # If the top-level project is a RabbitMQ component, we override
 # $(DEPS_DIR) for this project to point to the top-level's one.
 #
-# We also verify that the guessed DEPS_DIR is actually named `deps`,
-# to rule out any situation where it is a coincidence that we found a
-# `rabbitmq-components.mk` up upper directories.
+# We do the same for $(ERLANG_MK_TMP) as we want to keep the
+# beam cache regardless of where we build. We also want to
+# share Hex tarballs.
 
-possible_deps_dir_1 = $(abspath ..)
-possible_deps_dir_2 = $(abspath ../../..)
-
-ifeq ($(notdir $(possible_deps_dir_1)),deps)
-ifneq ($(wildcard $(possible_deps_dir_1)/../rabbitmq-components.mk),)
-deps_dir_overriden = 1
-DEPS_DIR ?= $(possible_deps_dir_1)
-DISABLE_DISTCLEAN = 1
-endif
-endif
-
-ifeq ($(deps_dir_overriden),)
-ifeq ($(notdir $(possible_deps_dir_2)),deps)
-ifneq ($(wildcard $(possible_deps_dir_2)/../rabbitmq-components.mk),)
-deps_dir_overriden = 1
-DEPS_DIR ?= $(possible_deps_dir_2)
-DISABLE_DISTCLEAN = 1
-endif
-endif
-endif
-
-ifneq ($(wildcard UMBRELLA.md),)
+ifneq ($(PROJECT),rabbitmq_server_release)
+DEPS_DIR ?= $(abspath ..)
+ERLANG_MK_TMP ?= $(abspath ../../.erlang.mk)
 DISABLE_DISTCLEAN = 1
 endif
 

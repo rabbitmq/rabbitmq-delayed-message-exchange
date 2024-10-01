@@ -238,42 +238,29 @@ recover() ->
     %% consistent hash exchanges since plugin activation was moved later in boot process
     %% starting with RabbitMQ 3.8.4
     case list_exchanges() of
-        {ok, Xs} ->
-            rabbit_log:debug("Delayed message exchange: "
-                              "have ~b durable exchanges to recover",
-                             [length(Xs)]),
-            [recover_exchange_and_bindings(X) || X <- lists:usort(Xs)];
-        {aborted, Reason} ->
+        {error, Reason} ->
             rabbit_log:error(
-                "Delayed message exchange: "
-                 "failed to recover durable bindings of one of the exchanges, reason: ~p",
-                [Reason])
+              "Delayed message exchange: "
+              "failed to recover durable bindings of one of the exchanges, reason: ~p",
+              [Reason]);
+        Xs ->
+            rabbit_log:debug("Delayed message exchange: "
+                             "have ~b durable exchanges to recover",
+                             [length(Xs)]),
+            [recover_exchange_and_bindings(X) || X <- lists:usort(Xs)]
     end.
 
 list_exchanges() ->
-    case mnesia:transaction(
-           fun () ->
-                   mnesia:match_object(
-                     rabbit_exchange, #exchange{durable = true,
-                                                type = 'x-delayed-message',
-                                                _ = '_'}, write)
-           end) of
-        {atomic, Xs} ->
-            {ok, Xs};
-        {aborted, Reason} ->
-            {aborted, Reason}
-    end.
+    Pattern = #exchange{durable = true, type = 'x-delayed-message', _ = '_'},
+    rabbit_db_exchange:match(Pattern).
 
 recover_exchange_and_bindings(#exchange{name = XName} = X) ->
-    mnesia:transaction(
-        fun () ->
-            Bindings = rabbit_binding:list_for_source(XName),
-            _ = [rabbit_exchange_type_delayed_message:add_binding(transaction, X, B)
-                 || B <- lists:usort(Bindings)],
-            rabbit_log:debug("Delayed message exchange: "
-                              "recovered bindings for ~s",
-                             [rabbit_misc:rs(XName)])
-    end).
+    Bindings = rabbit_binding:list_for_source(XName),
+    _ = [rabbit_exchange_type_delayed_message:add_binding(none, X, B)
+         || B <- lists:usort(Bindings)],
+    rabbit_log:debug("Delayed message exchange: "
+                     "recovered bindings for ~s",
+                     [rabbit_misc:rs(XName)]).
 
 %% These metrics are normally bumped from a channel process via which
 %% the publish actually happened. In the special case of delayed

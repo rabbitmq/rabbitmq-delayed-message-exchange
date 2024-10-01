@@ -1,6 +1,6 @@
 module(
     name = "rabbitmq_delayed_message_exchange",
-    version = "3.13.0",
+    version = "4.0.0",
 )
 
 bazel_dep(
@@ -27,14 +27,14 @@ use_repo(
 
 bazel_dep(
     name = "rabbitmq-server",
-    version = "3.13.0",
+    version = "4.0.0",
 )
 
 archive_override(
     module_name = "rabbitmq-server",
-    strip_prefix = "rabbitmq-server-main",
+    strip_prefix = "rabbitmq-server-4.0.x",
     urls = [
-        "https://github.com/rabbitmq/rabbitmq-server/archive/refs/heads/main.zip",
+        "https://github.com/rabbitmq/rabbitmq-server/archive/refs/heads/v4.0.x.zip",
     ],
 )
 
