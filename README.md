@@ -33,12 +33,16 @@ of some kind.
 
 The most recent release of this plugin targets RabbitMQ 4.0.x.
 
-This plugin can be enabled on a RabbitMQ cluster that uses either Mnesia or Khepri as metadata store.
+This plugin can be enabled on a RabbitMQ cluster that uses either Mnesia or Khepri as [metadata store](https://www.rabbitmq.com/docs/metadata-store),
+however, when this plugin is enabled **before** Khepri, it must be restarted (or the node must be)
+after Khepri is enabled.
 
-Warning: the plugin must be disabled during Khepri migration. One
-needs to disable this plugin before enabling the `khepri_db` feature
-flag and enable it after. This will result in losing all previous
-delayed messages.
+In other words, there are three possible scenarios w.r.t. the schema data store used:
+
+1. If the cluster uses Mnesia for schema store, it works exactly as it did against RabbitMQ 3.13.x
+2. If the cluster uses Khepri and the plugin is enabled after Khepri, it will start Mnesia, set up a node-local Mnesia replica and schema, and works as in scenario 1
+3. **Important**: if the cluster uses Mnesia, then the plugin is enabled, and then Khepri is enabled, the plugin must be disabled and re-enabled, or the node must be restarted.
+   Then it will start Mnesia and works as in scenario 2
 
 ## Supported Erlang/OTP Versions
 
@@ -210,6 +214,6 @@ The EZ file is created in the `bazel-bin` directory.
 1. Allow the Release workflow to run and create a draft release
 1. Review and publish the release
 
-## LICENSE ##
+## LICENSE
 
 See the LICENSE file.
