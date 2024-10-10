@@ -173,10 +173,6 @@ Obviously, only having one copy of a scheduled message in a cluster means
 that losing that node or disabling the plugin on it will lose the
 messages residing on that node.
 
-This plugin was created with disk nodes in mind. RAM nodes are currently
-unsupported and adding support for them is not a priority (if you aren't sure
-what RAM nodes are and whether you need to use them, you almost certainly don't).
-
 The plugin only performs one attempt at publishing each message but since publishing
 is local, in practice the only issue that may prevent delivery is the lack of queues
 (or bindings) to route to. 
