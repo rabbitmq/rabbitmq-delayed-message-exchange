@@ -74,6 +74,7 @@ To find out what the plugins directory is, use `rabbitmq-plugins directories`
 ``` bash
 rabbitmq-plugins directories -s
 ```
+Then upload the `.ez` file to the `Plugin archives directory`, the file will be unziped to `Plugin expansion directory` automatically upon plugin enable.
 
 ### Enabling the Plugin
 
