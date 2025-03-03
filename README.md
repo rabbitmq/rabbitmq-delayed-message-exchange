@@ -14,7 +14,7 @@ If you accept the limitations, please read on.
 
 ## The Basics
 
-With this plugin enabled, a user can declare an exchange with the type `x-delayed-message` and
+With this plugin [enabled](https://www.rabbitmq.com/docs/plugins), a user can declare an exchange with the type `x-delayed-message` and
 then publish messages with the custom header `x-delay` expressing in
 milliseconds a delay time for the message. The message will be
 delivered to the respective queues after `x-delay` milliseconds.
@@ -66,8 +66,8 @@ So, give it a try with your workload and decide for yourself.
 
 Binary builds are distributed [via GitHub releases](https://github.com/rabbitmq/rabbitmq-delayed-message-exchange/releases).
 
-As with all 3rd party plugins, the `.ez` file must be placed into a [node's plugins directory](https://rabbitmq.com/plugins.html#plugin-directories)
-and be readable by the effective user of the RabbitMQ process.
+As with all 3rd party plugins, the `.ez` file must be copied into a [node's plugins directory](https://rabbitmq.com/plugins.html#plugin-directories)
+with sufficient permissions for the effective user of the RabbitMQ process to load it from disk.
 
 To find out what the plugins directory is, use `rabbitmq-plugins directories`
 
