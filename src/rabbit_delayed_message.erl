@@ -14,6 +14,8 @@
 
 -module(rabbit_delayed_message).
 -include_lib("rabbit_common/include/rabbit.hrl").
+-include_lib("kernel/include/logger.hrl").
+
 -rabbit_boot_step({?MODULE,
                    [{description, "exchange delayed message mnesia setup"},
                     {mfa, {?MODULE, setup_mnesia, []}},
@@ -264,14 +266,14 @@ recover() ->
     %% starting with RabbitMQ 3.8.4
     case list_exchanges() of
         {error, Reason} ->
-            rabbit_log:error(
-              "Delayed message exchange: "
-              "failed to recover durable bindings of one of the exchanges, reason: ~p",
-              [Reason]);
+            ?LOG_ERROR(
+               "Delayed message exchange: "
+               "failed to recover durable bindings of one of the exchanges, reason: ~p",
+               [Reason]);
         Xs ->
-            rabbit_log:debug("Delayed message exchange: "
-                             "have ~b durable exchanges to recover",
-                             [length(Xs)]),
+            ?LOG_DEBUG("Delayed message exchange: "
+                       "have ~b durable exchanges to recover",
+                       [length(Xs)]),
             [recover_exchange_and_bindings(X) || X <- lists:usort(Xs)]
     end.
 
@@ -283,9 +285,9 @@ recover_exchange_and_bindings(#exchange{name = XName} = X) ->
     Bindings = rabbit_binding:list_for_source(XName),
     _ = [rabbit_exchange_type_delayed_message:add_binding(none, X, B)
          || B <- lists:usort(Bindings)],
-    rabbit_log:debug("Delayed message exchange: "
-                     "recovered bindings for ~s",
-                     [rabbit_misc:rs(XName)]).
+    ?LOG_DEBUG("Delayed message exchange: "
+               "recovered bindings for ~s",
+               [rabbit_misc:rs(XName)]).
 
 %% These metrics are normally bumped from a channel process via which
 %% the publish actually happened. In the special case of delayed
