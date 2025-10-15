@@ -196,11 +196,12 @@ HAVEN'T BEEN DELIVERED WILL BE LOST**.
 ## Building the Plugin
 
 ```shell
-bazel build //:erlang_app
-bazel build :ez
+PROJECT_VERSION=4.2.0-rc.1 PRODUCT_VERSION=4.2.0-rc.1 VERSION=4.2.0-rc.1 \
+    gmake dist PROJECT_VERSION=4.2.0-rc.1 PRODUCT_VERSION=4.2.0-rc.1 \
+    VERSION=4.2.0-rc.1 DIST_AS_EZS=true
 ```
 
-The EZ file is created in the `bazel-bin` directory.
+The EZ file is created in the `plugins` directory.
 
 ## Creating a Release
 
