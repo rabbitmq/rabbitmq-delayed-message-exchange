@@ -3,7 +3,7 @@
 ## Consider the Limitations
 
 This plugin adds delayed-messaging (or scheduled-messaging) to
-RabbitMQ. Its current design **has plenty of limitation** (documented below),
+RabbitMQ. Its current design **has multiple significant limitation** (documented below),
 consider using an external scheduler and a data store that fits your needs
 first.
 
@@ -31,7 +31,7 @@ of some kind.
 
 ## Supported RabbitMQ Versions
 
-The most recent release of this plugin targets RabbitMQ 4.0.x.
+Every [release](https://github.com/rabbitmq/rabbitmq-delayed-message-exchange) of this plugin targest one RabbitMQ release series.
 
 This plugin can be enabled on a RabbitMQ cluster that uses either Mnesia or Khepri as [metadata store](https://www.rabbitmq.com/docs/metadata-store),
 however, when this plugin is enabled **before** Khepri, it must be restarted (or the node must be)
@@ -46,18 +46,8 @@ In other words, there are three possible scenarios w.r.t. the schema data store 
 
 ## Supported Erlang/OTP Versions
 
-The latest version of this plugin [requires Erlang 26.2 or later versions](https://www.rabbitmq.com/which-erlang.html), same as RabbitMQ 4.0.x.
+The latest version of this plugin [requires Erlang 26.2 or later versions](https://www.rabbitmq.com/docs/which-erlang).
 
-## Project Maturity
-
-The current design of this plugin is **mature and potential suitable for production use
-as long as the user is aware of its limitations and the intended use cases**.
-
-This plugin is not commercially supported by VMware at the moment but
-it doesn't mean that it will be abandoned or team RabbitMQ is not interested
-in improving it in the future. It is not, however, a high priority for our small team.
-
-So, give it a try with your workload and decide for yourself.
 
 
 ## Installation
