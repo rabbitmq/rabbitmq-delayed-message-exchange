@@ -1,5 +1,19 @@
 # RabbitMQ Delayed Message Plugin
 
+## This Project is No Longer Actively Maintained
+
+**Important**: Team RabbitMQ no longer maintains this project beyond producing new builds as new
+RabbitMQ release series come out.
+
+A replacement is being developed for [Tanzu RabbitMQ](https://www.vmware.com/products/app-platform/tanzu-rabbitmq)
+as a new queue type (not an exchange plugin).
+
+Unlike this plugin, the Tanzu RabbitMQ solution is replicated and can handle substantial backlogs of distributed
+messages (say, millions of them) with a reasonable, relatively constant resource footprint.
+
+Only adopt this plugin if you understand its limitations (covered below) and are **willing to troubleshooting and fix** any issues
+you might run into.
+
 ## Consider the Limitations
 
 This plugin adds delayed-messaging (or scheduled-messaging) to
