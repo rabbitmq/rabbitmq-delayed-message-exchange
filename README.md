@@ -5,11 +5,9 @@
 **Important**: Team RabbitMQ no longer maintains this project beyond producing new builds as new
 RabbitMQ release series come out.
 
-A replacement is being developed for [VMware Tanzu RabbitMQ](https://www.vmware.com/products/app-platform/tanzu-rabbitmq)
-as a new queue type (not an exchange plugin).
+A replacement was developed for [VMware Tanzu RabbitMQ](https://www.vmware.com/products/app-platform/tanzu-rabbitmq).
 
-Unlike this plugin, the VMware Tanzu RabbitMQ solution is replicated and can handle substantial backlogs of distributed
-messages (say, millions of them) with a reasonable, relatively constant resource footprint.
+Unlike this plugin, the VMware Tanzu RabbitMQ solution is replicated and can handle substantial backlogs of delayed messages (say, millions of them) with a reasonable, relatively constant resource footprint. It provides a new queue type and the same delayed exchange type for compatibility. Read more about the [VMware Tanzu RabbitMQ Delayed Queue plugin](https://techdocs.broadcom.com/us/en/vmware-tanzu/data-solutions/tanzu-rabbitmq-oci/4-2/tanzu-rabbitmq-oci-image/site-delayed-queues.html).
 
 Only adopt this plugin if you understand its limitations (covered below) and are **willing to troubleshooting and fix** any issues
 you might run into.
