@@ -1,18 +1,51 @@
 # RabbitMQ Delayed Message Plugin
 
-## This Project is No Longer Actively Maintained
+## This Project is No Longer Maintained
 
-**Important**: Team RabbitMQ no longer maintains this project beyond producing new builds as new
-RabbitMQ release series come out.
+**Important**: Team RabbitMQ no longer maintains this project.
 
-A replacement was developed for [VMware Tanzu RabbitMQ](https://www.vmware.com/products/app-platform/tanzu-rabbitmq).
+## Why?
 
-Unlike this plugin, the VMware Tanzu RabbitMQ solution is replicated and can handle substantial backlogs of delayed messages (say, millions of them) with a reasonable, relatively constant resource footprint. It provides a new queue type and the same delayed exchange type for compatibility. Read more about the [VMware Tanzu RabbitMQ Delayed Queue plugin](https://techdocs.broadcom.com/us/en/vmware-tanzu/data-solutions/tanzu-rabbitmq-oci/4-2/tanzu-rabbitmq-oci-image/site-delayed-queues.html).
+This plugin has serious limitations and is based on Mnesia, the original schema data store in RabbitMQ that
+will be removed from RabbitMQ starting with the 4.3 or 4.4 series.
 
-Only adopt this plugin if you understand its limitations (covered below) and are **willing to troubleshooting and fix** any issues
-you might run into.
+A [distributed design](https://github.com/rabbitmq/rabbitmq-delayed-message-exchange/issues/229) of this plugin
+required significant changes and tool a few person-years. As this is an entirely optional feature, it was
+decided to ship it in the commercial edition.
 
-## Consider the Limitations
+
+## Alternatives Available
+
+### Delayed Queues in VMware Tanzu RabbitMQ
+
+[VMware Tanzu RabbitMQ](https://www.vmware.com/products/app-platform/tanzu-rabbitmq) supports a separate queue type, delayed queues,
+that, unlike this plugin, offers:
+
+ * Raft-based replication (same foundation and characteristics as [quorum queues](https://www.rabbitmq.com/docs/quorum-queues))
+ * Ability to handle backlogs into tens or even hundreds of millions of delayed messages
+
+### Using Dead Lettering for Message Delays
+
+The combination of [Dead Lettering](https://www.rabbitmq.com/docs/dlx) and [TTL](https://www.rabbitmq.com/docs/ttl) has been widely used for
+basic delays and task retries across the RabbitMQ community.
+
+Some messaging frameworks, e.g. NServiceBus, set up the topology for such delayed retries for you.
+
+This option gives you much better visibility of what's going on with the delayed messages, an ability to purge
+the messages, and use replicated queues types for their storage.
+
+### Build Your Own Single Node Alternative
+
+If the serious limitations of this plugin are acceptable to you, the single-node nature and significant limitations of this plugin
+make it easier to reimplement without any use of Mnesia:
+
+ * Target RabbitMQ 4.x where Khepri is a stable feature, enabled by default as of `4.2.0`
+ * Use Khepri for metadata storage
+ * Use RocksDB for storing messages
+
+
+
+## Consider the  Limitations
 
 This plugin adds delayed-messaging (or scheduled-messaging) to
 RabbitMQ. Its current design **has multiple significant limitation** (documented below),
