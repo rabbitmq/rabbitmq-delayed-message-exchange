@@ -10,8 +10,10 @@ This plugin has serious limitations and is based on Mnesia, the original schema 
 will be removed from RabbitMQ starting with the 4.3 or 4.4 series.
 
 A [distributed design](https://github.com/rabbitmq/rabbitmq-delayed-message-exchange/issues/229) of this plugin
-required significant changes and tool a few person-years. As this is an entirely optional feature, it was
-decided to ship it in the commercial edition.
+required significant changes (e.g. switching from a custom exchange type to a custom queue type),
+and took a few person-years worth of R&D investment. 
+
+As this is an entirely optional feature, it was decided to ship it in the commercial edition.
 
 
 ## Alternatives Available
