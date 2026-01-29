@@ -20,7 +20,7 @@ As this is an entirely optional feature, it was decided to ship it in the commer
 
 ### Delayed Queues in VMware Tanzu RabbitMQ
 
-[VMware Tanzu RabbitMQ](https://www.vmware.com/products/app-platform/tanzu-rabbitmq) supports a separate queue type, delayed queues,
+[VMware Tanzu RabbitMQ](https://www.vmware.com/products/app-platform/tanzu-rabbitmq) supports a separate queue type, [delayed queues](https://techdocs.broadcom.com/us/en/vmware-tanzu/data-solutions/tanzu-rabbitmq-ova/4-2/tanzu-rabbitmq-ova-virtual-machine/site-delayed-queues.html),
 that, unlike this plugin, offers:
 
  * Raft-based replication (same foundation and characteristics as [quorum queues](https://www.rabbitmq.com/docs/quorum-queues))
