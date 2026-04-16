@@ -7,7 +7,7 @@
 ## Why?
 
 This plugin has serious limitations and is based on Mnesia, the original schema data store in RabbitMQ that
-will be removed from RabbitMQ starting with the 4.3 or 4.4 series.
+[was completely removed from RabbitMQ](https://github.com/rabbitmq/rabbitmq-server/pull/15542) in the `4.3.0` development cycle.
 
 A [distributed design](https://github.com/rabbitmq/rabbitmq-delayed-message-exchange/issues/229) of this plugin
 required significant changes (e.g. switching from a custom exchange type to a custom queue type),
