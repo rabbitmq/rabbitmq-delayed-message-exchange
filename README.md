@@ -13,18 +13,19 @@ A [distributed design](https://github.com/rabbitmq/rabbitmq-delayed-message-exch
 required significant changes (e.g. switching from a custom exchange type to a custom queue type),
 and took a few person-years worth of R&D investment. 
 
-As this is an entirely optional feature, it was decided to ship it in the commercial edition.
+Starting with RabbitMQ `4.4`, [quorum queues](https://www.rabbitmq.com/docs/quorum-queues) natively support
+message delivery delay.
 
 
 ## Alternatives Available
 
-### Delayed Queues in VMware Tanzu RabbitMQ
+### Message Delivery Delay in Quorum Queues
 
-[VMware Tanzu RabbitMQ](https://www.vmware.com/products/app-platform/tanzu-rabbitmq) supports a separate queue type, [delayed queues](https://techdocs.broadcom.com/us/en/vmware-tanzu/data-solutions/tanzu-rabbitmq-ova/4-2/tanzu-rabbitmq-ova-virtual-machine/site-delayed-queues.html),
-that, unlike this plugin, offers:
+Starting with RabbitMQ `4.4`, [quorum queues](https://www.rabbitmq.com/docs/quorum-queues) support message delivery delay.
+Unlike this plugin, quorum queues offer:
 
- * Raft-based replication (same foundation and characteristics as [quorum queues](https://www.rabbitmq.com/docs/quorum-queues))
- * Ability to handle backlogs into tens or even hundreds of millions of delayed messages
+ * Raft-based replication and data safety
+ * No dependency on Mnesia
 
 ### Using Dead Lettering for Message Delays
 
